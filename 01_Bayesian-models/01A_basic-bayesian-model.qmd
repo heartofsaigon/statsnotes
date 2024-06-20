@@ -4,7 +4,7 @@ subtitle: (MATH533:Assigment 03)
 date: '`r Sys.Date()`'
 author: Nam-Anh Tran
 format:
-  html: default
+#  html: default
   pdf:
     mathspec: true
     include-in-header:

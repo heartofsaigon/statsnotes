@@ -1,0 +1,98 @@
+---
+title: "Basic Gaussian Process Models"
+subtitle: |
+date: '`r Sys.Date()`'
+author: Nam-Anh Tran
+format:
+  html: 
+    theme: darkly
+    toc: false
+fontsize: 12pt
+reference-location: margin
+citation-location: margin
+number-sections: false
+fig-cap-location: top
+fig-height: 4
+fig-width: 5
+shift-heading-level-by: 0
+link-citations: true
+linkcolor: red
+margin-top: .8in
+margin-bottom: 1in
+margin-left: .45in
+margin-right: .45in
+indent: true
+classoption: [onecolumn, portrait]
+bibliography: 02A_references.bib
+csl: ../vancouver.csl
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+\renewcommand{\bf}[1]{\boldsymbol{#1}}
+\doublespacing
+
+## Basic idea of Gaussian process (GP)
+
+We adopt notations from Garnett et. al. @garnett2023bayesian
+
+$$
+p(f) = \mathcal{GP}(f; \mu, K)
+$$
+
+## Exact and noisy observations
+
+
+```{r}
+
+if(!library(pacman, logical.return = T)) install.packages("pacman")
+pacman::p_load(tidyverse, plgp)
+
+# set up gaussian process after observing n 
+n = 100
+x = seq(0, 30, length.out = n)|> as.matrix()
+mu_x = rep(0, nrow(x))
+d = distance(x)
+K = exp(-d/2)
+
+set.seed(11)
+f = MASS::mvrnorm(3, mu_x, K)|> t()
+matplot(x, f, type = "l", lty = 1, ylim = c(-5,5))
+```
+
+
+
+```{r}
+set.seed(11)
+x_new = seq(0,30, length.out = 10)
+mu_x_new = rep(0, length(x_new))
+y = sin(x_new)*1.2
+d_x_new = distance(x_new)
+C = exp(-d_x_new/2)
+kap = distance(x, x_new)|> {\(i) exp(-i/2) }()
+
+mu_Dat = mu_x + kap%*%solve(C)%*%(y-mu_x_new)
+K_Dat = K - kap%*%solve(C)%*%t(kap)
+
+f_post = mvtnorm::rmvnorm(10000, mu_Dat, K_Dat)|> t()
+ci = apply(f_post,1, HDInterval::hdi)
+
+plot(x_new, y, pch = 16, col = "deeppink", xlim = c(0,30), ylim = c(-4,4), type = "o")
+lines(x, ci["upper",]); lines(x, ci["lower",])
+```
+
+## References
+
+
+
+
+
+
+
+
+
+
+
+
+

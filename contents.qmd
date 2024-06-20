@@ -1,0 +1,24 @@
+---
+title: "Contents"
+author: Nam-Anh
+format: 
+   html:
+     theme: darkly
+     toc: true
+linkcolor: deeppink
+number-sections: true
+editor: source
+---
+
+
+## Bayesian models
+
+a. Basic bayesian models [*(read me)*](https://heartofsaigon.github.io/writing-collection/01_Bayesian-models/01A_basic-bayesian-model.html)
+
+## Gaussian process
+
+a. Basic Gaussian process [*(read me)*]()
+
+
+
+

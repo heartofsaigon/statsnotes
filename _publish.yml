@@ -1,0 +1,4 @@
+- source: contents.qmd
+  quarto-pub:
+    - id: 083ccc39-34b4-4506-8af0-59698d7488c1
+      url: 'https://nam-anh.quarto.pub/contents'
