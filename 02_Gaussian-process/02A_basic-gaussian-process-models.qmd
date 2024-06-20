@@ -10,7 +10,7 @@ format:
 fontsize: 12pt
 reference-location: margin
 citation-location: margin
-number-sections: false
+number-sections: true
 fig-cap-location: top
 fig-height: 4
 fig-width: 5
@@ -35,13 +35,15 @@ editor_options:
 
 ## Basic idea of Gaussian process (GP)
 
-We adopt notations from Garnett et. al. @garnett2023bayesian
+Adopting notations from Garnett,@garnett2023bayesian we define GP as follows:  
 
 $$
 p(f) = \mathcal{GP}(f; \mu, K)
 $$
 
-## Exact and noisy observations
+
+
+## Exact observations
 
 
 ```{r}
@@ -82,8 +84,7 @@ plot(x_new, y, pch = 16, col = "deeppink", xlim = c(0,30), ylim = c(-4,4), type 
 lines(x, ci["upper",]); lines(x, ci["lower",])
 ```
 
-## References
-
+## Noisy observations
 
 
 

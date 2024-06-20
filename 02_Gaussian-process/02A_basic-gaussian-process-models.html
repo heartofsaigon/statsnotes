@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Nam-Anh Tran">
-<meta name="dcterms.date" content="2024-06-19">
+<meta name="dcterms.date" content="2024-06-20">
 
 <title>Basic Gaussian Process Models</title>
 <style>
@@ -120,7 +120,7 @@ div.csl-indent {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">June 19, 2024</p>
+      <p class="date">June 20, 2024</p>
     </div>
   </div>
   
@@ -130,17 +130,17 @@ div.csl-indent {
 
 </header>
 
-<section id="basic-idea-of-gaussian-process-gp" class="level2 page-columns page-full">
-<h2 class="anchored" data-anchor-id="basic-idea-of-gaussian-process-gp">Basic idea of Gaussian process (GP)</h2>
-<p>We adopt notations from Garnett et. al. <span class="citation" data-cites="garnett2023bayesian">[<a href="#ref-garnett2023bayesian" role="doc-biblioref">1</a>]</span></p>
+<section id="basic-idea-of-gaussian-process-gp" class="level2 page-columns page-full" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="basic-idea-of-gaussian-process-gp"><span class="header-section-number">1</span> Basic idea of Gaussian process (GP)</h2>
+<p>Adopting notations from Garnett,<span class="citation" data-cites="garnett2023bayesian"><a href="#ref-garnett2023bayesian" role="doc-biblioref"><sup>1</sup></a></span> we define GP as follows:</p>
 <div class="no-row-height column-margin column-container"><div id="ref-garnett2023bayesian" class="csl-entry" role="listitem">
-<div class="csl-left-margin">1. </div><div class="csl-right-inline">Garnett R. Bayesian optimization. Cambridge University Press; 2023. </div>
+1. Garnett R. Bayesian optimization. Cambridge University Press; 2023.
 </div></div><p><span class="math display">\[
 p(f) = \mathcal{GP}(f; \mu, K)
 \]</span></p>
 </section>
-<section id="exact-and-noisy-observations" class="level2">
-<h2 class="anchored" data-anchor-id="exact-and-noisy-observations">Exact and noisy observations</h2>
+<section id="exact-observations" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="exact-observations"><span class="header-section-number">2</span> Exact observations</h2>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="sc">!</span><span class="fu">library</span>(pacman, <span class="at">logical.return =</span> T)) <span class="fu">install.packages</span>(<span class="st">"pacman"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pacman<span class="sc">::</span><span class="fu">p_load</span>(tidyverse, plgp)</span>
@@ -181,8 +181,8 @@ p(f) = \mathcal{GP}(f; \mu, K)
 </div>
 </div>
 </section>
-<section id="references" class="level2 unnumbered">
-<h2 class="unnumbered anchored" data-anchor-id="references">References</h2>
+<section id="noisy-observations" class="level2 unnumbered" data-number="3">
+<h2 class="unnumbered anchored" data-number="3" data-anchor-id="noisy-observations"><span class="header-section-number">3</span> Noisy observations</h2>
 
 </section>
 
