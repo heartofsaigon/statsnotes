@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Nam-Anh Tran">
-<meta name="dcterms.date" content="2024-06-20">
+<meta name="dcterms.date" content="2024-06-25">
 
 <title>Basic Gaussian Process Models</title>
 <style>
@@ -56,26 +56,7 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-/* CSS for citations */
-div.csl-bib-body { }
-div.csl-entry {
-  clear: both;
-}
-.hanging-indent div.csl-entry {
-  margin-left:2em;
-  text-indent:-2em;
-}
-div.csl-left-margin {
-  min-width:2em;
-  float:left;
-}
-div.csl-right-inline {
-  margin-left:2em;
-  padding-left:1em;
-}
-div.csl-indent {
-  margin-left: 2em;
-}</style>
+</style>
 
 
 <script src="02A_basic-gaussian-process-models_files/libs/clipboard/clipboard.min.js"></script>
@@ -94,12 +75,11 @@ div.csl-indent {
 
 </head>
 
-<body>
+<body class="fullcontent">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-</div>
-<main class="content page-columns page-full" id="quarto-document-content">
+
+<main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
@@ -120,7 +100,7 @@ div.csl-indent {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">June 20, 2024</p>
+      <p class="date">June 25, 2024</p>
     </div>
   </div>
   
@@ -130,60 +110,88 @@ div.csl-indent {
 
 </header>
 
-<section id="basic-idea-of-gaussian-process-gp" class="level2 page-columns page-full" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="basic-idea-of-gaussian-process-gp"><span class="header-section-number">1</span> Basic idea of Gaussian process (GP)</h2>
-<p>Adopting notations from Garnett,<span class="citation" data-cites="garnett2023bayesian"><a href="#ref-garnett2023bayesian" role="doc-biblioref"><sup>1</sup></a></span> we define GP as follows:</p>
-<div class="no-row-height column-margin column-container"><div id="ref-garnett2023bayesian" class="csl-entry" role="listitem">
-1. Garnett R. Bayesian optimization. Cambridge University Press; 2023.
-</div></div><p><span class="math display">\[
-p(f) = \mathcal{GP}(f; \mu, K)
+<section id="basic-idea-of-gaussian-process-gp-models" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="basic-idea-of-gaussian-process-gp-models"><span class="header-section-number">1</span> Basic idea of Gaussian process (GP) models</h2>
+<p>Let’s consider the following function</p>
+<p><span class="math display">\[
+y = \sin x, \quad x \in [0,2\pi] .
 \]</span></p>
-</section>
-<section id="exact-observations" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="exact-observations"><span class="header-section-number">2</span> Exact observations</h2>
+<p>We now assume that we do not know this function but we observe <span class="math inline">\(\boldsymbol{x}\)</span> and <span class="math inline">\(\boldsymbol y\)</span> shown in <a href="#fig-01">Figure&nbsp;1</a>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="sc">!</span><span class="fu">library</span>(pacman, <span class="at">logical.return =</span> T)) <span class="fu">install.packages</span>(<span class="st">"pacman"</span>)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pacman<span class="sc">::</span><span class="fu">p_load</span>(tidyverse, plgp)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pacman<span class="sc">::</span><span class="fu">p_load</span>(tidyverse, plgp, laGP, mvtnorm)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># set up gaussian process after observing n </span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>n <span class="ot">=</span> <span class="dv">100</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>x <span class="ot">=</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">30</span>, <span class="at">length.out =</span> n)<span class="sc">|&gt;</span> <span class="fu">as.matrix</span>()</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>mu_x <span class="ot">=</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">nrow</span>(x))</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>d <span class="ot">=</span> <span class="fu">distance</span>(x)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>K <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d<span class="sc">/</span><span class="dv">2</span>)</span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
-<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>f <span class="ot">=</span> MASS<span class="sc">::</span><span class="fu">mvrnorm</span>(<span class="dv">3</span>, mu_x, K)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
-<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x, f, <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span>,<span class="dv">5</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>n <span class="ot">=</span> <span class="dv">10</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>x_obs <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">seq</span>(<span class="dv">0</span>,<span class="dv">2</span><span class="sc">*</span>pi,<span class="at">length=</span>n), <span class="at">ncol=</span><span class="dv">1</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">=</span> <span class="fu">sin</span>(x_obs)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x_obs, y_obs, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span>,<span class="dv">5</span>), <span class="at">xlab =</span> <span class="st">"observation x"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(sin<span class="sc">~</span><span class="st">"(x)"</span> ) )</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># gp = newGP(x_obs, y, 2, 1e-6, dK = TRUE)</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co"># mleGP(gp, tmax = 20)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># jmleGP(gp)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="02A_basic-gaussian-process-models_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid" width="480"></p>
+<div id="fig-01" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="02A_basic-gaussian-process-models_files/figure-html/fig-01-1.png" class="img-fluid figure-img" width="480"></p>
+<figcaption class="figure-caption">Figure&nbsp;1: seven observation <span class="math inline">\((x_i,y_i), i = 1,2,\dots,8\)</span>.</figcaption>
+</figure>
 </div>
 </div>
+</div>
+<p>Our objective is to model this data using the Gaussian process framework. Suppose <span class="math inline">\(Y_i\)</span>, corresponding to <span class="math inline">\(x_i\)</span>, is normally distributed with mean <span class="math inline">\(\mu\)</span> and SD <span class="math inline">\(\sigma\)</span>. We also assume that <span class="math inline">\(Y_i\)</span> and <span class="math inline">\(Y_j\)</span> are correlated with corresponding covariance <span class="math inline">\(\sigma_{ij}\)</span> dependent on the distance of <span class="math inline">\(x_i\)</span> and <span class="math inline">\(x_j\)</span> (the further the weaker). We now describe this setup using the gaussian process notation</p>
+<p><span id="eq-01"><span class="math display">\[
+\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol\mu, \boldsymbol \Sigma),
+\tag{1}\]</span></span></p>
+<p>which has the same meaning with the multivariate normal framework, i.e.&nbsp;<span class="math inline">\(Y_n \sim N_n(\mu, \Sigma_n)\)</span>. Without loss of generality, we assume that <span class="math inline">\(\boldsymbol \mu = \boldsymbol 0\)</span>, i.e.</p>
+<p><span id="eq-02"><span class="math display">\[
+\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol 0, \boldsymbol \Sigma)
+\tag{2}\]</span></span></p>
+<p>We now simulate <span class="math inline">\(\boldsymbol Y\)</span> using the multivariate normal distribution</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">11</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>x_new <span class="ot">=</span> <span class="fu">seq</span>(<span class="dv">0</span>,<span class="dv">30</span>, <span class="at">length.out =</span> <span class="dv">10</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>mu_x_new <span class="ot">=</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="fu">length</span>(x_new))</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>y <span class="ot">=</span> <span class="fu">sin</span>(x_new)<span class="sc">*</span><span class="fl">1.2</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>d_x_new <span class="ot">=</span> <span class="fu">distance</span>(x_new)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>C <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_x_new<span class="sc">/</span><span class="dv">2</span>)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>kap <span class="ot">=</span> <span class="fu">distance</span>(x, x_new)<span class="sc">|&gt;</span> {\(i) <span class="fu">exp</span>(<span class="sc">-</span>i<span class="sc">/</span><span class="dv">2</span>) }()</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>mu_Dat <span class="ot">=</span> mu_x <span class="sc">+</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(C)<span class="sc">%*%</span>(y<span class="sc">-</span>mu_x_new)</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>K_Dat <span class="ot">=</span> K <span class="sc">-</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(C)<span class="sc">%*%</span><span class="fu">t</span>(kap)</span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>f_post <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_Dat, K_Dat)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">=</span> <span class="fu">apply</span>(f_post,<span class="dv">1</span>, HDInterval<span class="sc">::</span>hdi)</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x_new, y, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">col =</span> <span class="st">"deeppink"</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">30</span>), <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">4</span>,<span class="dv">4</span>), <span class="at">type =</span> <span class="st">"o"</span>)</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(x, ci[<span class="st">"upper"</span>,]); <span class="fu">lines</span>(x, ci[<span class="st">"lower"</span>,])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">111</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n  <span class="ot">=</span> <span class="dv">100</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>x_pr <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">seq</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="dv">2</span><span class="sc">*</span>pi<span class="fl">+0.5</span>, <span class="at">length=</span><span class="dv">100</span>), <span class="at">ncol=</span><span class="dv">1</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>d_pr <span class="ot">=</span> <span class="fu">distance</span>(x_pr)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>Sigma_pr <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_pr)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>mu_pr <span class="ot">=</span> <span class="fu">numeric</span>(<span class="fu">length</span>(x_pr))<span class="sc">|&gt;</span> <span class="fu">as.matrix</span>()</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>y_pr <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">3</span>, mu_pr, Sigma_pr)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(y_pr), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">xlab =</span> <span class="st">"prior x"</span>, <span class="at">ylab =</span> <span class="st">"density"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="02A_basic-gaussian-process-models_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid" width="480"></p>
+<div id="fig-02" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="02A_basic-gaussian-process-models_files/figure-html/fig-02-1.png" class="img-fluid figure-img" width="480"></p>
+<figcaption class="figure-caption">Figure&nbsp;2: Prior Gaussian.</figcaption>
+</figure>
 </div>
 </div>
-</section>
-<section id="noisy-observations" class="level2 unnumbered" data-number="3">
-<h2 class="unnumbered anchored" data-number="3" data-anchor-id="noisy-observations"><span class="header-section-number">3</span> Noisy observations</h2>
-
+</div>
+<p>Inherited from the conditional multivariate normal distribution, we determine the posterior distribution which is the conditional distribution <span class="math inline">\(Y^{prior}|Y^{obs} \equiv Y^{pos}\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>d_obs <span class="ot">=</span> <span class="fu">distance</span>(x_obs)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>Sigma_obs <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_obs)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>kap <span class="ot">=</span> <span class="fu">distance</span>(x_pr, x_obs)<span class="sc">|&gt;</span> {\(i) <span class="fu">exp</span>(<span class="sc">-</span>i)}()</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>mu_pos <span class="ot">=</span> mu_pr <span class="sc">+</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(Sigma_obs)<span class="sc">%*%</span>(y_obs)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>Sigma_pos <span class="ot">=</span> Sigma_pr <span class="sc">-</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(Sigma_obs)<span class="sc">%*%</span><span class="fu">t</span>(kap)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>y_pos <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_pos, Sigma_pos)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">=</span> <span class="fu">apply</span>(y_pos,<span class="dv">1</span>, HDInterval<span class="sc">::</span>hdi)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span>,<span class="dv">5</span>), <span class="at">xlab =</span> <span class="st">"observation x"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(sin<span class="sc">~</span><span class="st">"(x)"</span> ) )</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">100</span>) <span class="fu">lines</span>(x_pr, y_pos[,i], <span class="at">col =</span> <span class="st">"gray"</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">add =</span> T, <span class="at">type =</span> <span class="st">"l"</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co">#lines(x, m )</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(x_obs, y_obs, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">type =</span> <span class="st">"o"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-03" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="02A_basic-gaussian-process-models_files/figure-html/fig-03-1.png" class="img-fluid figure-img" width="480"></p>
+<figcaption class="figure-caption">Figure&nbsp;3: The predictive surface interpolates the data.</figcaption>
+</figure>
+</div>
+</div>
+</div>
 </section>
 
 </main>

@@ -11,16 +11,11 @@ fontsize: 12pt
 reference-location: margin
 citation-location: margin
 number-sections: true
-fig-cap-location: top
+fig-cap-location: bottom
 fig-height: 4
 fig-width: 5
-shift-heading-level-by: 0
 link-citations: true
-linkcolor: red
-margin-top: .8in
-margin-bottom: 1in
-margin-left: .45in
-margin-right: .45in
+linkcolor: deeppink
 indent: true
 classoption: [onecolumn, portrait]
 bibliography: 02A_references.bib
@@ -28,63 +23,95 @@ csl: ../vancouver.csl
 editor: source
 editor_options: 
   chunk_output_type: console
+execute: 
+  eval: false
 ---
 
 \renewcommand{\bf}[1]{\boldsymbol{#1}}
 \doublespacing
 
-## Basic idea of Gaussian process (GP)
+## Basic idea of Gaussian process (GP) models
 
-Adopting notations from Garnett,@garnett2023bayesian we define GP as follows:  
+Let's consider the following function 
 
 $$
-p(f) = \mathcal{GP}(f; \mu, K)
+y = \sin x, \quad x \in [0,2\pi] .
 $$
 
-
-
-## Exact observations
-
+We now assume that we do not know this function but we observe $\boldsymbol{x}$ and $\boldsymbol y$ shown in @fig-01. 
 
 ```{r}
+#| eval: true
+#| label: fig-01
+#| fig-cap: seven observation $(x_i,y_i), i = 1,2,\dots,8$.
 
 if(!library(pacman, logical.return = T)) install.packages("pacman")
-pacman::p_load(tidyverse, plgp)
+pacman::p_load(tidyverse, plgp, laGP, mvtnorm)
 
-# set up gaussian process after observing n 
-n = 100
-x = seq(0, 30, length.out = n)|> as.matrix()
-mu_x = rep(0, nrow(x))
-d = distance(x)
-K = exp(-d/2)
+n = 10
+x_obs = matrix(seq(0,2*pi,length=n), ncol=1)
+y_obs = sin(x_obs)
+plot(x_obs, y_obs, ylim = c(-5,5), xlab = "observation x", ylab = expression(sin~"(x)" ) )
 
-set.seed(11)
-f = MASS::mvrnorm(3, mu_x, K)|> t()
-matplot(x, f, type = "l", lty = 1, ylim = c(-5,5))
+# gp = newGP(x_obs, y, 2, 1e-6, dK = TRUE)
+# mleGP(gp, tmax = 20)
+# jmleGP(gp)
 ```
 
+Our objective is to model this data using the Gaussian process framework. Suppose $Y_i$, corresponding to $x_i$, is normally distributed with mean $\mu$ and SD $\sigma$. We also assume that $Y_i$ and $Y_j$ are correlated with corresponding covariance $\sigma_{ij}$ dependent on the distance of $x_i$ and $x_j$ (the further the weaker). We now describe this setup using the gaussian process notation 
+
+$$
+\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol\mu, \boldsymbol \Sigma),
+$$ {#eq-01}
+
+which has the same meaning with the multivariate normal framework, i.e. $Y_n \sim N_n(\mu, \Sigma_n)$. Without loss of generality, we assume that $\boldsymbol \mu = \boldsymbol 0$, i.e.
+
+$$
+\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol 0, \boldsymbol \Sigma)
+$$ {#eq-02}
+
+We now simulate $\boldsymbol Y$ using the multivariate normal distribution
+
+```{r}
+#| eval: true
+#| label: fig-02
+#| fig-cap: Prior Gaussian.
+
+set.seed(111)
+n  = 100
+x_pr = matrix(seq(-0.5, 2*pi+0.5, length=100), ncol=1)
+d_pr = distance(x_pr)
+Sigma_pr = exp(-d_pr)
+mu_pr = numeric(length(x_pr))|> as.matrix()
+
+y_pr = mvtnorm::rmvnorm(3, mu_pr, Sigma_pr)
+matplot(x_pr, t(y_pr), type = "l", lty = 1, xlab = "prior x", ylab = "density")
+```
+
+Inherited from the conditional multivariate normal distribution, we determine the posterior distribution which is the conditional distribution $Y^{prior}|Y^{obs} \equiv Y^{pos}$. 
 
 
 ```{r}
-set.seed(11)
-x_new = seq(0,30, length.out = 10)
-mu_x_new = rep(0, length(x_new))
-y = sin(x_new)*1.2
-d_x_new = distance(x_new)
-C = exp(-d_x_new/2)
-kap = distance(x, x_new)|> {\(i) exp(-i/2) }()
+#| label: fig-03
+#| eval: true
+#| fig-cap: "The predictive surface interpolates the data."
 
-mu_Dat = mu_x + kap%*%solve(C)%*%(y-mu_x_new)
-K_Dat = K - kap%*%solve(C)%*%t(kap)
+d_obs = distance(x_obs)
+Sigma_obs = exp(-d_obs)
+kap = distance(x_pr, x_obs)|> {\(i) exp(-i)}()
 
-f_post = mvtnorm::rmvnorm(10000, mu_Dat, K_Dat)|> t()
-ci = apply(f_post,1, HDInterval::hdi)
+mu_pos = mu_pr + kap%*%solve(Sigma_obs)%*%(y_obs)
+Sigma_pos = Sigma_pr - kap%*%solve(Sigma_obs)%*%t(kap)
 
-plot(x_new, y, pch = 16, col = "deeppink", xlim = c(0,30), ylim = c(-4,4), type = "o")
-lines(x, ci["upper",]); lines(x, ci["lower",])
+y_pos = mvtnorm::rmvnorm(10000, mu_pos, Sigma_pos)|> t()
+ci = apply(y_pos,1, HDInterval::hdi)
+
+matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-5,5), xlab = "observation x", ylab = expression(sin~"(x)" ) )
+for(i in 1:100) lines(x_pr, y_pos[,i], col = "gray")
+matplot(x_pr, t(ci), col = "black", lty = 1, add = T, type = "l")
+#lines(x, m )
+lines(x_obs, y_obs, pch = 16, col = "red", type = "o")
 ```
-
-## Noisy observations
 
 
 
