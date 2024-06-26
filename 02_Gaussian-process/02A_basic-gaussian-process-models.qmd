@@ -12,13 +12,13 @@ reference-location: margin
 citation-location: margin
 number-sections: true
 fig-cap-location: bottom
-fig-height: 4
-fig-width: 5
+fig-height: 6
+fig-width: 8.5
 link-citations: true
 linkcolor: deeppink
 indent: true
 classoption: [onecolumn, portrait]
-bibliography: 02A_references.bib
+bibliography: 02_references.bib
 csl: ../vancouver.csl
 editor: source
 editor_options: 
@@ -28,9 +28,8 @@ execute:
 ---
 
 \renewcommand{\bf}[1]{\boldsymbol{#1}}
-\doublespacing
 
-## Basic idea of Gaussian process (GP) models
+## Basic idea of Gaussian process (GP)
 
 Let's consider the following function 
 
@@ -51,7 +50,7 @@ pacman::p_load(tidyverse, plgp, laGP, mvtnorm)
 n = 6
 x_obs = matrix(seq(0,2*pi,length=n), ncol=1)
 y_obs = sin(x_obs)
-plot(x_obs, y_obs, ylim = c(-5,5), xlab = "observation x", ylab = expression(sin~"(x)" ) )
+plot(x_obs, y_obs, ylim = c(-6,6), xlab = "observation x", ylab = expression(sin~"(x)" ), pch = 16, cex = 1.2, type = "o", col = "red" )
 
 # gp = newGP(x_obs, y, 2, 1e-6, dK = TRUE)
 # mleGP(gp, tmax = 20)
@@ -85,7 +84,8 @@ Sigma_pr = exp(-d_pr)
 mu_pr = numeric(length(x_pr))|> as.matrix()
 
 y_pr = mvtnorm::rmvnorm(3, mu_pr, Sigma_pr)
-matplot(x_pr, t(y_pr), type = "l", lty = 1, xlab = "prior x", ylab = "density")
+matplot(x_pr, t(y_pr), type = "l", lty = 1, xlab = "prior x", ylab = "density", ylim = c(-6,6))
+points(x_obs, y_obs, pch = 16, cex = 1.2, type = "o", col = "red" )
 ```
 
 Inherited from the conditional multivariate normal distribution, we determine the posterior distribution which is the conditional distribution $Y^{prior}|Y^{obs} \equiv Y^{pos}$. 
@@ -106,12 +106,41 @@ Sigma_pos = Sigma_pr - kap%*%solve(Sigma_obs)%*%t(kap)
 y_pos = mvtnorm::rmvnorm(10000, mu_pos, Sigma_pos)|> t()
 ci = apply(y_pos,1, HDInterval::hdi)
 
-matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-5,5), xlab = "observation x", ylab = expression(sin~"(x)" ) )
+matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-6,6), xlab = "observation x", ylab = expression(sin~"(x)" ) )
 for(i in 1:100) lines(x_pr, y_pos[,i], col = "gray")
 matplot(x_pr, t(ci), col = "black", lty = 1, add = T, type = "l")
 #lines(x, m )
-lines(x_obs, y_obs, pch = 16, col = "red", type = "o")
+lines(x_obs, y_obs, pch = 16, col = "red", type = "o", cex = 1.2)
 ```
+
+## GP with hyperparameters
+
+*Why do we need to consider the hyperparamters in GP?* 
+
+
+
+```{r}
+#| label: fig-04
+#| eval: true
+#| fig-cap: "The predictive surface interpolates the data as the scale of 10 is added."
+
+y_obs_sc = y_obs*8
+
+mu_pos = mu_pr + kap%*%solve(Sigma_obs)%*%(y_obs_sc)
+Sigma_pos = Sigma_pr - kap%*%solve(Sigma_obs)%*%t(kap)
+
+set.seed(1)
+y_pos = mvtnorm::rmvnorm(10000, mu_pos, Sigma_pos)|> t()
+ci = apply(y_pos,1, HDInterval::hdi)
+
+matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-10,10), xlab = "observation x", ylab = expression(sin~"(x)" ) )
+for(i in 1:100) lines(x_pr, y_pos[,i], col = "gray")
+matplot(x_pr, t(ci), col = "black", lty = 1, add = T, type = "l")
+#lines(x, m )
+lines(x_obs, y_obs_sc, pch = 16, col = "red", type = "o", cex = 1.2)
+```
+
+
 
 
 
