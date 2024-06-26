@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Nam-Anh Tran">
-<meta name="dcterms.date" content="2024-06-25">
+<meta name="dcterms.date" content="2024-06-26">
 
 <title>Basic Gaussian Process Models</title>
 <style>
@@ -100,7 +100,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">June 25, 2024</p>
+      <p class="date">June 26, 2024</p>
     </div>
   </div>
   
@@ -121,7 +121,7 @@ y = \sin x, \quad x \in [0,2\pi] .
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="sc">!</span><span class="fu">library</span>(pacman, <span class="at">logical.return =</span> T)) <span class="fu">install.packages</span>(<span class="st">"pacman"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pacman<span class="sc">::</span><span class="fu">p_load</span>(tidyverse, plgp, laGP, mvtnorm)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>n <span class="ot">=</span> <span class="dv">10</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>n <span class="ot">=</span> <span class="dv">6</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>x_obs <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">seq</span>(<span class="dv">0</span>,<span class="dv">2</span><span class="sc">*</span>pi,<span class="at">length=</span>n), <span class="at">ncol=</span><span class="dv">1</span>)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">=</span> <span class="fu">sin</span>(x_obs)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(x_obs, y_obs, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">5</span>,<span class="dv">5</span>), <span class="at">xlab =</span> <span class="st">"observation x"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(sin<span class="sc">~</span><span class="st">"(x)"</span> ) )</span>

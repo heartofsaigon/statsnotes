@@ -48,7 +48,7 @@ We now assume that we do not know this function but we observe $\boldsymbol{x}$ 
 if(!library(pacman, logical.return = T)) install.packages("pacman")
 pacman::p_load(tidyverse, plgp, laGP, mvtnorm)
 
-n = 10
+n = 6
 x_obs = matrix(seq(0,2*pi,length=n), ncol=1)
 y_obs = sin(x_obs)
 plot(x_obs, y_obs, ylim = c(-5,5), xlab = "observation x", ylab = expression(sin~"(x)" ) )

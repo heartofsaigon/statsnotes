@@ -6,18 +6,18 @@ format:
      theme: darkly
      toc: true
 linkcolor: deeppink
-number-sections: true
+number-sections: false
 editor: source
 ---
 
 
 ## Bayesian models
 
-a. Basic bayesian models [*(read me)*](https://heartofsaigon.github.io/writing-collection/01_Bayesian-models/01A_basic-bayesian-model.html)
+1. Basic bayesian models [*(read me)*](https://heartofsaigon.github.io/writing-collection/01_Bayesian-models/01A_basic-bayesian-model.html)
 
 ## Gaussian process
 
-a. Basic Gaussian process [*(read me)*]()
+1. Basic Gaussian process [*(read me)*](https://heartofsaigon.github.io/writing-collection/02_Gaussian-process/02A_basic-gaussian-process-models.html)
 
 
 
