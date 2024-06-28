@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Nam-Anh Tran">
-<meta name="dcterms.date" content="2024-06-26">
+<meta name="dcterms.date" content="2024-06-27">
 
 <title>Basic Gaussian Process Models</title>
 <style>
@@ -56,7 +56,26 @@ div.sourceCode
 @media screen {
 pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="02A_basic-gaussian-process-models_files/libs/clipboard/clipboard.min.js"></script>
@@ -75,11 +94,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </head>
 
-<body class="fullcontent">
+<body>
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-
-<main class="content" id="quarto-document-content">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+</div>
+<main class="content page-columns page-full" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
@@ -100,7 +120,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">June 26, 2024</p>
+      <p class="date">June 27, 2024</p>
     </div>
   </div>
   
@@ -110,13 +130,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 </header>
 
-<section id="basic-idea-of-gaussian-process-gp" class="level2" data-number="1">
-<h2 data-number="1" class="anchored" data-anchor-id="basic-idea-of-gaussian-process-gp"><span class="header-section-number">1</span> Basic idea of Gaussian process (GP)</h2>
-<p>Let’s consider the following function</p>
-<p><span class="math display">\[
-y = \sin x, \quad x \in [0,2\pi] .
+<section id="basic-ideas-of-gaussian-process-gp" class="level2 page-columns page-full" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="basic-ideas-of-gaussian-process-gp"><span class="header-section-number">1</span> Basic ideas of Gaussian process (GP)</h2>
+<p>Let’s consider the following function <span class="math display">\[
+y = \sin x, \quad x \in [0,2\pi].
 \]</span></p>
-<p>We now assume that we do not know this function but we observe <span class="math inline">\(\boldsymbol{x}\)</span> and <span class="math inline">\(\boldsymbol y\)</span> shown in <a href="#fig-01">Figure&nbsp;1</a>.</p>
+<p>We now assume that we do not know this function but we observe the data <span class="math inline">\(\{(x_i, y_i)\}_{i =1}^6\)</span> shown in <a href="#fig-01">Figure&nbsp;1</a>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span>(<span class="sc">!</span><span class="fu">library</span>(pacman, <span class="at">logical.return =</span> T)) <span class="fu">install.packages</span>(<span class="st">"pacman"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>pacman<span class="sc">::</span><span class="fu">p_load</span>(tidyverse, plgp, laGP, mvtnorm)</span>
@@ -133,30 +152,34 @@ y = \sin x, \quad x \in [0,2\pi] .
 <div id="fig-01" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="02A_basic-gaussian-process-models_files/figure-html/fig-01-1.png" class="img-fluid figure-img" width="816"></p>
-<figcaption class="figure-caption">Figure&nbsp;1: seven observation <span class="math inline">\((x_i,y_i), i = 1,2,\dots,8\)</span>.</figcaption>
+<figcaption class="figure-caption">Figure&nbsp;1: seven observation <span class="math inline">\((x_i,y_i), i = 1,2,\dots,6\)</span>.</figcaption>
 </figure>
 </div>
 </div>
 </div>
-<p>Our objective is to model this data using the Gaussian process framework. Suppose <span class="math inline">\(Y_i\)</span>, corresponding to <span class="math inline">\(x_i\)</span>, is normally distributed with mean <span class="math inline">\(\mu\)</span> and SD <span class="math inline">\(\sigma\)</span>. We also assume that <span class="math inline">\(Y_i\)</span> and <span class="math inline">\(Y_j\)</span> are correlated with corresponding covariance <span class="math inline">\(\sigma_{ij}\)</span> dependent on the distance of <span class="math inline">\(x_i\)</span> and <span class="math inline">\(x_j\)</span> (the further the weaker). We now describe this setup using the gaussian process notation</p>
-<p><span id="eq-01"><span class="math display">\[
-\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol\mu, \boldsymbol \Sigma),
-\tag{1}\]</span></span></p>
-<p>which has the same meaning with the multivariate normal framework, i.e.&nbsp;<span class="math inline">\(Y_n \sim N_n(\mu, \Sigma_n)\)</span>. Without loss of generality, we assume that <span class="math inline">\(\boldsymbol \mu = \boldsymbol 0\)</span>, i.e.</p>
-<p><span id="eq-02"><span class="math display">\[
-\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol 0, \boldsymbol \Sigma)
-\tag{2}\]</span></span></p>
-<p>We now simulate <span class="math inline">\(\boldsymbol Y\)</span> using the multivariate normal distribution</p>
+<p>Our objective is to model this data using the GP framework. We now introduce notations used through the note before diving into the main concept. We adopt notations from Garnett<span class="citation" data-cites="garnett2023bayesian"><a href="#ref-garnett2023bayesian" role="doc-biblioref"><sup>1</sup></a></span>. A GP on <span class="math inline">\(f\)</span> is defined as follows <span id="eq-01"><span class="math display">\[
+p(f) =  GP(f; \mu, K),
+\tag{1}\]</span></span> where <span class="math inline">\(\mu: \mathcal{X} \to \mathbb{R}\)</span> and <span class="math inline">\(K: \mathcal{X\times X}\to \mathbb{R}\)</span> are a <em>mean function</em> and positive semidefinte <em>covariance function</em> (or <em>kernel</em>). Also, let’s <span class="math inline">\(\phi = f(x)\)</span> corresponding to the observed datum <span class="math inline">\(x\)</span>. Thus,</p>
+<div class="no-row-height column-margin column-container"><div id="ref-garnett2023bayesian" class="csl-entry" role="listitem">
+1. Garnett R. Bayesian optimization. Cambridge University Press; 2023.
+</div></div><p><span class="math display">\[
+\mu(x) = \mathbb{E}(\phi|x)
+\]</span> and <span class="math display">\[
+K(x_1,x_2) = \text{cov}[\phi_1,\phi_2|x_1,x_2].
+\]</span></p>
+<p>This setting can also be described using the multivariate normal distribution; thus, <span class="math display">\[
+p(\boldsymbol\phi) = \mathcal{N}(\boldsymbol\phi; \boldsymbol\mu, \boldsymbol\Sigma),
+\]</span> where <span class="math inline">\(\boldsymbol\mu = \mathbb{E}(\boldsymbol\phi|\boldsymbol x) = \mu(\boldsymbol x)\)</span> and <span class="math inline">\(\boldsymbol\Sigma = \text{cov}(\boldsymbol\phi|\boldsymbol x) = K(\boldsymbol{x}, \boldsymbol{x})\)</span>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">111</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n  <span class="ot">=</span> <span class="dv">100</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>x_pr <span class="ot">=</span> <span class="fu">matrix</span>(<span class="fu">seq</span>(<span class="sc">-</span><span class="fl">0.5</span>, <span class="dv">2</span><span class="sc">*</span>pi<span class="fl">+0.5</span>, <span class="at">length=</span><span class="dv">100</span>), <span class="at">ncol=</span><span class="dv">1</span>)</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>d_pr <span class="ot">=</span> <span class="fu">distance</span>(x_pr)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>Sigma_pr <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_pr)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>K_pr <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_pr)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>mu_pr <span class="ot">=</span> <span class="fu">numeric</span>(<span class="fu">length</span>(x_pr))<span class="sc">|&gt;</span> <span class="fu">as.matrix</span>()</span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>y_pr <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">3</span>, mu_pr, Sigma_pr)</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(y_pr), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">xlab =</span> <span class="st">"prior x"</span>, <span class="at">ylab =</span> <span class="st">"density"</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">6</span>,<span class="dv">6</span>))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>y_pr <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">3</span>, mu_pr, K_pr)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(y_pr), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">xlab =</span> <span class="st">"prior x"</span>, <span class="at">ylab =</span> <span class="st">"density"</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">6</span>,<span class="dv">6</span>), <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"blue"</span>,<span class="st">"green"</span>, <span class="st">"gray"</span>))</span>
 <span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(x_obs, y_obs, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">cex =</span> <span class="fl">1.2</span>, <span class="at">type =</span> <span class="st">"o"</span>, <span class="at">col =</span> <span class="st">"red"</span> )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div id="fig-02" class="quarto-figure quarto-figure-center anchored">
@@ -167,16 +190,39 @@ y = \sin x, \quad x \in [0,2\pi] .
 </div>
 </div>
 </div>
-<p>Inherited from the conditional multivariate normal distribution, we determine the posterior distribution which is the conditional distribution <span class="math inline">\(Y^{prior}|Y^{obs} \equiv Y^{pos}\)</span>.</p>
+<p>Having used this familiar notations, the conditional normal distribution is obtained with ease based on the standard formulae of conditional multivariate normal distribution. Consider the following GP <span class="math display">\[
+p(f,\boldsymbol y) = \mathcal{GP}\bigg(
+\begin{bmatrix}
+f \\
+\boldsymbol y
+\end{bmatrix};
+\begin{bmatrix}
+\mu \\
+\boldsymbol m
+\end{bmatrix},
+\begin{bmatrix}
+K &amp; \kappa^{\top} \\
+\kappa &amp; \boldsymbol C
+\end{bmatrix}
+\bigg),
+\]</span> which implies that <span class="math inline">\(\boldsymbol y \sim \mathcal{N}(\boldsymbol y; \boldsymbol m, \boldsymbol C)\)</span> and <span class="math inline">\(\kappa(x) = \text{cov}(\boldsymbol y, \phi|x)\)</span>. Let <span class="math inline">\(D \equiv \boldsymbol y\)</span> is the observed data and, thus, the conditional GP is <span id="eq-02"><span class="math display">\[
+\begin{aligned}
+&amp;p(f|D) = \mathcal{GP}(f; \mu_D, K_D),\\
+\text{ where } \\
+&amp;\mu_D(x) = \mu(x) + \kappa(x)^{\top}\boldsymbol{C}^{-1}(\boldsymbol y - \boldsymbol m)  \\
+&amp;K_D(x,x_*) = K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)
+\end{aligned}
+\tag{2}\]</span></span></p>
+<p>The above setting is the brief summary of the GP. We now specify the conditional GP whose prior is shown in <a href="#fig-02">Figure&nbsp;2</a> and the observed data <span class="math inline">\(D\)</span> is shown in <a href="#fig-01">Figure&nbsp;1</a>. Note that the covariance matrix is calculated using the squared exponential, i.e.&nbsp;<span class="math inline">\(K(x,x_*) = \exp\{-(x-x_*)^2\}\)</span>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>d_obs <span class="ot">=</span> <span class="fu">distance</span>(x_obs)</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>Sigma_obs <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_obs)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>C_obs <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_obs)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>kap <span class="ot">=</span> <span class="fu">distance</span>(x_pr, x_obs)<span class="sc">|&gt;</span> {\(i) <span class="fu">exp</span>(<span class="sc">-</span>i)}()</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>mu_pos <span class="ot">=</span> mu_pr <span class="sc">+</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(Sigma_obs)<span class="sc">%*%</span>(y_obs)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>Sigma_pos <span class="ot">=</span> Sigma_pr <span class="sc">-</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(Sigma_obs)<span class="sc">%*%</span><span class="fu">t</span>(kap)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>mu_D <span class="ot">=</span> mu_pr <span class="sc">+</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(C_obs)<span class="sc">%*%</span>(y_obs)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>K_D <span class="ot">=</span> K_pr <span class="sc">-</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(C_obs)<span class="sc">%*%</span><span class="fu">t</span>(kap)</span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>y_pos <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_pos, Sigma_pos)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>y_pos <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_D, K_D)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
 <span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">=</span> <span class="fu">apply</span>(y_pos,<span class="dv">1</span>, HDInterval<span class="sc">::</span>hdi)</span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">6</span>,<span class="dv">6</span>), <span class="at">xlab =</span> <span class="st">"observation x"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(sin<span class="sc">~</span><span class="st">"(x)"</span> ) )</span>
@@ -194,33 +240,68 @@ y = \sin x, \quad x \in [0,2\pi] .
 </div>
 </div>
 </section>
-<section id="gp-with-hyperparameters" class="level2" data-number="2">
+<section id="gp-with-hyperparameters" class="level2 page-columns page-full" data-number="2">
 <h2 data-number="2" class="anchored" data-anchor-id="gp-with-hyperparameters"><span class="header-section-number">2</span> GP with hyperparameters</h2>
-<p><em>Why do we need to consider the hyperparamters in GP?</em></p>
+<p><em>Why do we need to consider the hyperparamters in GP?</em> Let’s consider a scenario where the true distribution of the data has a large variance compared to the prior fitted.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>y_obs_sc <span class="ot">=</span> y_obs<span class="sc">*</span><span class="dv">8</span></span>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>y_obs_new <span class="ot">=</span> y_obs<span class="sc">*</span><span class="dv">8</span></span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>mu_pos <span class="ot">=</span> mu_pr <span class="sc">+</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(Sigma_obs)<span class="sc">%*%</span>(y_obs_sc)</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>Sigma_pos <span class="ot">=</span> Sigma_pr <span class="sc">-</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(Sigma_obs)<span class="sc">%*%</span><span class="fu">t</span>(kap)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>mu_D_new <span class="ot">=</span> mu_pr <span class="sc">+</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(C_obs)<span class="sc">%*%</span>(y_obs_new)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>K_D_new <span class="ot">=</span> K_pr <span class="sc">-</span> kap<span class="sc">%*%</span><span class="fu">solve</span>(C_obs)<span class="sc">%*%</span><span class="fu">t</span>(kap)</span>
 <span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>y_pos <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_pos, Sigma_pos)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>y_pos <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_D_new, K_D_new)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">=</span> <span class="fu">apply</span>(y_pos,<span class="dv">1</span>, HDInterval<span class="sc">::</span>hdi)</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">10</span>,<span class="dv">10</span>), <span class="at">xlab =</span> <span class="st">"observation x"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(sin<span class="sc">~</span><span class="st">"(x)"</span> ) )</span>
 <span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">100</span>) <span class="fu">lines</span>(x_pr, y_pos[,i], <span class="at">col =</span> <span class="st">"gray"</span>)</span>
 <span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">add =</span> T, <span class="at">type =</span> <span class="st">"l"</span>)</span>
 <span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co">#lines(x, m )</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(x_obs, y_obs_sc, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">type =</span> <span class="st">"o"</span>, <span class="at">cex =</span> <span class="fl">1.2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(x_obs, y_obs_new, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">type =</span> <span class="st">"o"</span>, <span class="at">cex =</span> <span class="fl">1.2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div id="fig-04" class="quarto-figure quarto-figure-center anchored">
 <figure class="figure">
 <p><img src="02A_basic-gaussian-process-models_files/figure-html/fig-04-1.png" class="img-fluid figure-img" width="816"></p>
-<figcaption class="figure-caption">Figure&nbsp;4: The predictive surface interpolates the data as the scale of 10 is added.</figcaption>
+<figcaption class="figure-caption">Figure&nbsp;4: The predictive surface interpolates the data as the scale of 8 is added.</figcaption>
 </figure>
 </div>
 </div>
 </div>
+<p>Compared to <a href="#fig-03">Figure&nbsp;3</a>, the uncertainty about the true function (red line) is lower, which is our desire, but the corresponding credible intervals do not capture the true function. Thus, we need to adjust the covariance <span class="math inline">\(\boldsymbol C\)</span>, i.e.&nbsp;</p>
+<p><span class="math display">\[
+p(\boldsymbol y) = \mathcal{N}(\boldsymbol y; \mu, \tau^2\boldsymbol C),
+\]</span> We then can calculate the maximum likelihood estimator of <span class="math inline">\(\tau^2\)</span> as follows<br>
+<span class="math display">\[
+\hat\tau^2_{ML} = \frac{\boldsymbol y^{\top}\boldsymbol\Sigma^{-1}\boldsymbol y}{\text{length}(\boldsymbol y)},
+\]</span> detail can be find in Gramacy et al.<span class="citation" data-cites="gramacy2020surrogates"><a href="#ref-gramacy2020surrogates" role="doc-biblioref"><sup>2</sup></a></span> We now plug-in <span class="math inline">\(\hat\tau^2_{ML}\)</span> into <a href="#eq-02">Equation&nbsp;2</a>. Technically, this leads to multivariate student-<span class="math inline">\(t\)</span> distribution, but we assume that the degree of freedom is large enough to approximate the <span class="math inline">\(t\)</span> using the normal distribution.<span class="citation" data-cites="gramacy2020surrogates"><a href="#ref-gramacy2020surrogates" role="doc-biblioref"><sup>2</sup></a></span>. The mean <span class="math inline">\(\mu_D\)</span> remains unchanged, but the covariance matrix changes to the following form: <span id="eq-03"><span class="math display">\[
+K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML};
+\tag{3}\]</span></span> it is worth noting that the the MLE of <span class="math inline">\(\tau\)</span> is a function of <span class="math inline">\(f\)</span> which indicates that the observed data are now involved in the uncertainty, compared to the formula in <a href="#fig-02">Figure&nbsp;2</a>.</p>
+<div class="no-row-height column-margin column-container"><div id="ref-gramacy2020surrogates" class="csl-entry" role="listitem">
+2. Gramacy RB. Surrogates: Gaussian process modeling, design, and optimization for the applied sciences. Chapman; Hall/CRC; 2020.
+</div></div><div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>tau2hat<span class="ot">&lt;-</span> <span class="fu">drop</span>(<span class="fu">t</span>(y_obs_new)<span class="sc">%*%</span>C_obs<span class="sc">%*%</span>y_obs_new<span class="sc">/</span><span class="fu">length</span>(y_obs_new))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>K_D_new_up <span class="ot">=</span> tau2hat<span class="sc">*</span>K_D_new</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="do">####</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>y_pos <span class="ot">=</span> mvtnorm<span class="sc">::</span><span class="fu">rmvnorm</span>(<span class="dv">10000</span>, mu_D_new, K_D_new_up)<span class="sc">|&gt;</span> <span class="fu">t</span>()</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>ci <span class="ot">=</span> <span class="fu">apply</span>(y_pos,<span class="dv">1</span>, HDInterval<span class="sc">::</span>hdi)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">type =</span> <span class="st">"l"</span>, <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">15</span>,<span class="dv">15</span>), <span class="at">xlab =</span> <span class="st">"observation x"</span>, <span class="at">ylab =</span> <span class="fu">expression</span>(sin<span class="sc">~</span><span class="st">"(x)"</span> ) )</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">100</span>) <span class="fu">lines</span>(x_pr, y_pos[,i], <span class="at">col =</span> <span class="st">"gray"</span>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="fu">matplot</span>(x_pr, <span class="fu">t</span>(ci), <span class="at">col =</span> <span class="st">"black"</span>, <span class="at">lty =</span> <span class="dv">1</span>, <span class="at">add =</span> T, <span class="at">type =</span> <span class="st">"l"</span>)</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co">#lines(x, m )</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(x_obs, y_obs_new, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">col =</span> <span class="st">"red"</span>, <span class="at">type =</span> <span class="st">"o"</span>, <span class="at">cex =</span> <span class="fl">1.2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-05" class="quarto-figure quarto-figure-center anchored">
+<figure class="figure">
+<p><img src="02A_basic-gaussian-process-models_files/figure-html/fig-05-1.png" class="img-fluid figure-img" width="816"></p>
+<figcaption class="figure-caption">Figure&nbsp;5: The predictive surface of the scale-adjusted GP.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+
 </section>
 
 </main>

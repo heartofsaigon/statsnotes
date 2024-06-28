@@ -29,20 +29,19 @@ execute:
 
 \renewcommand{\bf}[1]{\boldsymbol{#1}}
 
-## Basic idea of Gaussian process (GP)
+## Basic ideas of Gaussian process (GP)
 
 Let's consider the following function 
-
 $$
-y = \sin x, \quad x \in [0,2\pi] .
+y = \sin x, \quad x \in [0,2\pi].
 $$
 
-We now assume that we do not know this function but we observe $\boldsymbol{x}$ and $\boldsymbol y$ shown in @fig-01. 
+We now assume that we do not know this function but we observe the data $\{(x_i, y_i)\}_{i =1}^6$ shown in @fig-01. 
 
 ```{r}
 #| eval: true
 #| label: fig-01
-#| fig-cap: seven observation $(x_i,y_i), i = 1,2,\dots,8$.
+#| fig-cap: seven observation $(x_i,y_i), i = 1,2,\dots,6$.
 
 if(!library(pacman, logical.return = T)) install.packages("pacman")
 pacman::p_load(tidyverse, plgp, laGP, mvtnorm)
@@ -57,19 +56,25 @@ plot(x_obs, y_obs, ylim = c(-6,6), xlab = "observation x", ylab = expression(sin
 # jmleGP(gp)
 ```
 
-Our objective is to model this data using the Gaussian process framework. Suppose $Y_i$, corresponding to $x_i$, is normally distributed with mean $\mu$ and SD $\sigma$. We also assume that $Y_i$ and $Y_j$ are correlated with corresponding covariance $\sigma_{ij}$ dependent on the distance of $x_i$ and $x_j$ (the further the weaker). We now describe this setup using the gaussian process notation 
-
+Our objective is to model this data using the GP framework. We now introduce notations used through the note before diving into the main concept. We adopt notations from Garnett[@garnett2023bayesian]. A GP on $f$ is defined as follows
 $$
-\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol\mu, \boldsymbol \Sigma),
+p(f) =  GP(f; \mu, K),
 $$ {#eq-01}
-
-which has the same meaning with the multivariate normal framework, i.e. $Y_n \sim N_n(\mu, \Sigma_n)$. Without loss of generality, we assume that $\boldsymbol \mu = \boldsymbol 0$, i.e.
+where $\mu: \mathcal{X} \to \mathbb{R}$ and $K: \mathcal{X\times X}\to \mathbb{R}$ are a *mean function* and positive semidefinte *covariance function*  (or *kernel*). Also, let's $\phi = f(x)$ corresponding to the observed datum $x$. Thus, 
 
 $$
-\boldsymbol Y \sim GP(\boldsymbol Y; \boldsymbol 0, \boldsymbol \Sigma)
-$$ {#eq-02}
+\mu(x) = \mathbb{E}(\phi|x) 
+$$
+and 
+$$
+K(x_1,x_2) = \text{cov}[\phi_1,\phi_2|x_1,x_2].
+$$
 
-We now simulate $\boldsymbol Y$ using the multivariate normal distribution
+This setting can also be described using the multivariate normal distribution; thus,
+$$
+p(\boldsymbol\phi) = \mathcal{N}(\boldsymbol\phi; \boldsymbol\mu, \boldsymbol\Sigma),
+$$
+where $\boldsymbol\mu = \mathbb{E}(\boldsymbol\phi|\boldsymbol x) = \mu(\boldsymbol x)$ and $\boldsymbol\Sigma = \text{cov}(\boldsymbol\phi|\boldsymbol x) = K(\boldsymbol{x}, \boldsymbol{x})$. 
 
 ```{r}
 #| eval: true
@@ -80,16 +85,43 @@ set.seed(111)
 n  = 100
 x_pr = matrix(seq(-0.5, 2*pi+0.5, length=100), ncol=1)
 d_pr = distance(x_pr)
-Sigma_pr = exp(-d_pr)
+K_pr = exp(-d_pr)
 mu_pr = numeric(length(x_pr))|> as.matrix()
 
-y_pr = mvtnorm::rmvnorm(3, mu_pr, Sigma_pr)
-matplot(x_pr, t(y_pr), type = "l", lty = 1, xlab = "prior x", ylab = "density", ylim = c(-6,6))
+y_pr = mvtnorm::rmvnorm(3, mu_pr, K_pr)
+matplot(x_pr, t(y_pr), type = "l", lty = 1, xlab = "prior x", ylab = "density", ylim = c(-6,6), col = c("blue","green", "gray"))
 points(x_obs, y_obs, pch = 16, cex = 1.2, type = "o", col = "red" )
 ```
 
-Inherited from the conditional multivariate normal distribution, we determine the posterior distribution which is the conditional distribution $Y^{prior}|Y^{obs} \equiv Y^{pos}$. 
+Having used this familiar notations, the conditional normal distribution is obtained with ease based on the standard formulae of conditional multivariate normal distribution. Consider the following GP
+$$
+p(f,\boldsymbol y) = \mathcal{GP}\bigg(
+\begin{bmatrix}
+f \\ 
+\boldsymbol y
+\end{bmatrix};
+\begin{bmatrix}
+\mu \\ 
+\boldsymbol m
+\end{bmatrix},
+\begin{bmatrix}
+K & \kappa^{\top} \\
+\kappa & \boldsymbol C
+\end{bmatrix}
+\bigg),
+$$
+which implies that $\boldsymbol y \sim \mathcal{N}(\boldsymbol y; \boldsymbol m, \boldsymbol C)$ and $\kappa(x) = \text{cov}(\boldsymbol y, \phi|x)$. Let $D \equiv \boldsymbol y$ is the observed data and, thus, the conditional GP is
+$$
+\begin{aligned}
+&p(f|D) = \mathcal{GP}(f; \mu_D, K_D),\\ 
+\text{ where } \\
+&\mu_D(x) = \mu(x) + \kappa(x)^{\top}\boldsymbol{C}^{-1}(\boldsymbol y - \boldsymbol m)  \\
+&K_D(x,x_*) = K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)
+\end{aligned}
+$$ {#eq-02}
 
+
+The above setting is the brief summary of the GP. We now specify the conditional GP whose prior is shown in @fig-02 and the observed data $D$ is shown in @fig-01. Note that the covariance matrix is calculated using the squared exponential, i.e. $K(x,x_*) = \exp\{-(x-x_*)^2\}$.
 
 ```{r}
 #| label: fig-03
@@ -97,13 +129,13 @@ Inherited from the conditional multivariate normal distribution, we determine th
 #| fig-cap: "The predictive surface interpolates the data."
 
 d_obs = distance(x_obs)
-Sigma_obs = exp(-d_obs)
+C_obs = exp(-d_obs)
 kap = distance(x_pr, x_obs)|> {\(i) exp(-i)}()
 
-mu_pos = mu_pr + kap%*%solve(Sigma_obs)%*%(y_obs)
-Sigma_pos = Sigma_pr - kap%*%solve(Sigma_obs)%*%t(kap)
+mu_D = mu_pr + kap%*%solve(C_obs)%*%(y_obs)
+K_D = K_pr - kap%*%solve(C_obs)%*%t(kap)
 
-y_pos = mvtnorm::rmvnorm(10000, mu_pos, Sigma_pos)|> t()
+y_pos = mvtnorm::rmvnorm(10000, mu_D, K_D)|> t()
 ci = apply(y_pos,1, HDInterval::hdi)
 
 matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-6,6), xlab = "observation x", ylab = expression(sin~"(x)" ) )
@@ -115,30 +147,66 @@ lines(x_obs, y_obs, pch = 16, col = "red", type = "o", cex = 1.2)
 
 ## GP with hyperparameters
 
-*Why do we need to consider the hyperparamters in GP?* 
-
-
+*Why do we need to consider the hyperparamters in GP?* Let's consider a scenario where the true distribution of the data has a large variance compared to the prior fitted.  
 
 ```{r}
 #| label: fig-04
 #| eval: true
-#| fig-cap: "The predictive surface interpolates the data as the scale of 10 is added."
+#| fig-cap: "The predictive surface interpolates the data as the scale of 8 is added."
 
-y_obs_sc = y_obs*8
+y_obs_new = y_obs*8
 
-mu_pos = mu_pr + kap%*%solve(Sigma_obs)%*%(y_obs_sc)
-Sigma_pos = Sigma_pr - kap%*%solve(Sigma_obs)%*%t(kap)
+mu_D_new = mu_pr + kap%*%solve(C_obs)%*%(y_obs_new)
+K_D_new = K_pr - kap%*%solve(C_obs)%*%t(kap)
 
 set.seed(1)
-y_pos = mvtnorm::rmvnorm(10000, mu_pos, Sigma_pos)|> t()
+y_pos = mvtnorm::rmvnorm(10000, mu_D_new, K_D_new)|> t()
 ci = apply(y_pos,1, HDInterval::hdi)
 
 matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-10,10), xlab = "observation x", ylab = expression(sin~"(x)" ) )
 for(i in 1:100) lines(x_pr, y_pos[,i], col = "gray")
 matplot(x_pr, t(ci), col = "black", lty = 1, add = T, type = "l")
 #lines(x, m )
-lines(x_obs, y_obs_sc, pch = 16, col = "red", type = "o", cex = 1.2)
+lines(x_obs, y_obs_new, pch = 16, col = "red", type = "o", cex = 1.2)
 ```
+
+Compared to @fig-03, the uncertainty about the true function (red line) is lower, which is our desire, but the corresponding credible intervals do not capture the true function. Thus, we need to adjust the covariance $\boldsymbol C$, i.e. 
+
+$$
+p(\boldsymbol y) = \mathcal{N}(\boldsymbol y; \mu, \tau^2\boldsymbol C),
+$$
+We then can calculate the maximum likelihood estimator of $\tau^2$ as follows   
+$$
+\hat\tau^2_{ML} = \frac{\boldsymbol y^{\top}\boldsymbol\Sigma^{-1}\boldsymbol y}{\text{length}(\boldsymbol y)},
+$$
+detail can be find in Gramacy et al.[@gramacy2020surrogates] We now plug-in $\hat\tau^2_{ML}$ into @eq-02. Technically, this leads to multivariate student-$t$ distribution, but we assume that the degree of freedom is large enough to approximate the $t$ using the normal distribution.[@gramacy2020surrogates]. The mean $\mu_D$ remains unchanged, but the covariance matrix changes to the following form:
+$$
+K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML};
+$$ {#eq-03}
+it is worth noting that the the MLE of $\tau$ is a function of $f$ which indicates that the observed data are now involved in the uncertainty, compared to the formula in @fig-02. 
+
+```{r}
+#| label: fig-05
+#| eval: true
+#| fig-cap: "The predictive surface of the scale-adjusted GP."
+
+tau2hat<- drop(t(y_obs_new)%*%C_obs%*%y_obs_new/length(y_obs_new))
+K_D_new_up = tau2hat*K_D_new
+####
+
+set.seed(1)
+y_pos = mvtnorm::rmvnorm(10000, mu_D_new, K_D_new_up)|> t()
+ci = apply(y_pos,1, HDInterval::hdi)
+
+matplot(x_pr, t(ci), type = "l", col = "black", lty = 1, ylim = c(-15,15), xlab = "observation x", ylab = expression(sin~"(x)" ) )
+for(i in 1:100) lines(x_pr, y_pos[,i], col = "gray")
+matplot(x_pr, t(ci), col = "black", lty = 1, add = T, type = "l")
+#lines(x, m )
+lines(x_obs, y_obs_new, pch = 16, col = "red", type = "o", cex = 1.2)
+```
+
+
+
 
 
 
