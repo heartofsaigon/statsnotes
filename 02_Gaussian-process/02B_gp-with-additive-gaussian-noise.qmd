@@ -33,8 +33,35 @@ execute:
 
 Having observed $f$ at locations $\bf x$, we define $\bf\phi = f(\bf x)$, and $D = (\bf x, \bf\phi)$. Also suppose that 
 $$
-p(\bf\phi|\bf x) = \mathcal{N}(\bf\phi;\bf\mu,\bf\Sigma)
+p(\bf\phi|\bf x) = \mathcal{N}(\bf\phi;\bf\mu,\bf\Sigma).
 $$ {#eq-01}
+
+The cross-covariance of a function value $x$ vs. the observed $D$ is 
+$$
+\kappa(x) = \text{cov}(\bf\phi,\phi|\bf x,x) = K(\bf x,x),
+$$
+and we then have 
+
+$$
+\begin{aligned}
+p(f|D) &= \mathcal{GP}(f;\mu_D, K_D), \text{ where }\\
+&\mu_D = \mu(x) + K(x,\bf x)\Sigma^{-1}(\bf\phi - \bf\mu),\\
+&K_D(x,x_*) = K(x,x_*) - K(x, \bf x)\Sigma^{-1}K(\bf x, x)
+\end{aligned}
+$$ {#eq-02}
+
+## The additive error term
+
+We now suppose that we can only observe $\bf y = \bf\phi +\bf\varepsilon$ where 
+$$
+p(\bf\varepsilon|\bf x, \bf N) = \mathcal{N}(\bf\varepsilon;\bf0,\bf N), \text{ and } \bf\varepsilon \perp \bf\phi.
+$$
+
+Under the assumption of homoscedastic noise we have $\bf N = \sigma^2_n\bf I$ and, thus,
+$$
+p(\bf y|\bf x,\bf N) = \mathcal{N}
+$$
+
 
 
 

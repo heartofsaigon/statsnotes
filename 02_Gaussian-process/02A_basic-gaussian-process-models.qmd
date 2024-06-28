@@ -180,7 +180,7 @@ We then can calculate the maximum likelihood estimator of $\tau^2$ as follows
 $$
 \hat\tau^2_{ML} = \frac{\boldsymbol y^{\top}\boldsymbol\Sigma^{-1}\boldsymbol y}{\text{length}(\boldsymbol y)},
 $$
-detail can be find in Gramacy et al.[@gramacy2020surrogates] We now plug-in $\hat\tau^2_{ML}$ into @eq-02. Technically, this leads to multivariate student-$t$ distribution, but we assume that the degree of freedom is large enough to approximate the $t$ using the normal distribution.[@gramacy2020surrogates]. The mean $\mu_D$ remains unchanged, but the covariance matrix changes to the following form:
+detail can be found in Gramacy et al.[@gramacy2020surrogates] We now plug-in $\hat\tau^2_{ML}$ into @eq-02. Technically, this leads to multivariate student-$t$ distribution, but we assume that the degree of freedom is large enough to approximate the $t$ using the normal distribution.[@gramacy2020surrogates]. The mean $\mu_D$ remains unchanged, but the covariance matrix changes to the following form:
 $$
 K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML},
 $$ {#eq-03}
