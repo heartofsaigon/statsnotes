@@ -1,0 +1,54 @@
+---
+title: "GP with Additive Gaussian Noise"
+subtitle: |
+date: '`r Sys.Date()`'
+author: Nam-Anh Tran
+format:
+  html: 
+    theme: darkly
+    toc: false
+fontsize: 12pt
+reference-location: margin
+citation-location: margin
+number-sections: true
+fig-cap-location: bottom
+fig-height: 6
+fig-width: 8.5
+link-citations: true
+linkcolor: deeppink
+indent: true
+classoption: [onecolumn, portrait]
+bibliography: 02_references.bib
+csl: ../vancouver.csl
+editor: source
+editor_options: 
+  chunk_output_type: console
+execute: 
+  eval: false
+---
+
+\renewcommand{\bf}[1]{\boldsymbol{#1}}
+
+## Recap the inference with exact function evaluations
+
+Having observed $f$ at locations $\bf x$, we define $\bf\phi = f(\bf x)$, and $D = (\bf x, \bf\phi)$. Also suppose that 
+$$
+p(\bf\phi|\bf x) = \mathcal{N}(\bf\phi;\bf\mu,\bf\Sigma)
+$$ {#eq-01}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
