@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Nam-Anh Tran">
-<meta name="dcterms.date" content="2024-06-27">
+<meta name="dcterms.date" content="2024-06-28">
 
 <title>Basic Gaussian Process Models</title>
 <style>
@@ -120,7 +120,7 @@ div.csl-indent {
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">June 27, 2024</p>
+      <p class="date">June 28, 2024</p>
     </div>
   </div>
   
@@ -211,9 +211,9 @@ K &amp; \kappa^{\top} \\
 \text{ where } \\
 &amp;\mu_D(x) = \mu(x) + \kappa(x)^{\top}\boldsymbol{C}^{-1}(\boldsymbol y - \boldsymbol m)  \\
 &amp;K_D(x,x_*) = K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)
-\end{aligned}
-\tag{2}\]</span></span></p>
-<p>The above setting is the brief summary of the GP. We now specify the conditional GP whose prior is shown in <a href="#fig-02">Figure&nbsp;2</a> and the observed data <span class="math inline">\(D\)</span> is shown in <a href="#fig-01">Figure&nbsp;1</a>. Note that the covariance matrix is calculated using the squared exponential, i.e.&nbsp;<span class="math inline">\(K(x,x_*) = \exp\{-(x-x_*)^2\}\)</span>.</p>
+\end{aligned},
+\tag{2}\]</span></span> without loss of generality, we can assume <span class="math inline">\(\boldsymbol\mu = \boldsymbol m = \boldsymbol 0\)</span>.<br>
+The above setting is the brief summary of the GP. We now specify the conditional GP whose prior is shown in <a href="#fig-02">Figure&nbsp;2</a> and the observed data <span class="math inline">\(D\)</span> is shown in <a href="#fig-01">Figure&nbsp;1</a>. Note that the covariance matrix is calculated using the squared exponential, i.e.&nbsp;<span class="math inline">\(K(x,x_*) = \exp\{-(x-x_*)^2\}\)</span>.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>d_obs <span class="ot">=</span> <span class="fu">distance</span>(x_obs)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>C_obs <span class="ot">=</span> <span class="fu">exp</span>(<span class="sc">-</span>d_obs)</span>
@@ -270,15 +270,19 @@ K &amp; \kappa^{\top} \\
 <p>Compared to <a href="#fig-03">Figure&nbsp;3</a>, the uncertainty about the true function (red line) is lower, which is our desire, but the corresponding credible intervals do not capture the true function. Thus, we need to adjust the covariance <span class="math inline">\(\boldsymbol C\)</span>, i.e.&nbsp;</p>
 <p><span class="math display">\[
 p(\boldsymbol y) = \mathcal{N}(\boldsymbol y; \mu, \tau^2\boldsymbol C),
-\]</span> We then can calculate the maximum likelihood estimator of <span class="math inline">\(\tau^2\)</span> as follows<br>
+\]</span> which is analogous to defining <span class="math inline">\(f_* = \tau f\)</span>.</p>
+<p>We then can calculate the maximum likelihood estimator of <span class="math inline">\(\tau^2\)</span> as follows<br>
 <span class="math display">\[
 \hat\tau^2_{ML} = \frac{\boldsymbol y^{\top}\boldsymbol\Sigma^{-1}\boldsymbol y}{\text{length}(\boldsymbol y)},
 \]</span> detail can be find in Gramacy et al.<span class="citation" data-cites="gramacy2020surrogates"><a href="#ref-gramacy2020surrogates" role="doc-biblioref"><sup>2</sup></a></span> We now plug-in <span class="math inline">\(\hat\tau^2_{ML}\)</span> into <a href="#eq-02">Equation&nbsp;2</a>. Technically, this leads to multivariate student-<span class="math inline">\(t\)</span> distribution, but we assume that the degree of freedom is large enough to approximate the <span class="math inline">\(t\)</span> using the normal distribution.<span class="citation" data-cites="gramacy2020surrogates"><a href="#ref-gramacy2020surrogates" role="doc-biblioref"><sup>2</sup></a></span>. The mean <span class="math inline">\(\mu_D\)</span> remains unchanged, but the covariance matrix changes to the following form: <span id="eq-03"><span class="math display">\[
-K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML};
-\tag{3}\]</span></span> it is worth noting that the the MLE of <span class="math inline">\(\tau\)</span> is a function of <span class="math inline">\(f\)</span> which indicates that the observed data are now involved in the uncertainty, compared to the formula in <a href="#fig-02">Figure&nbsp;2</a>.</p>
+K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML},
+\tag{3}\]</span></span> which can be deduced from the new setting <span class="math inline">\(f_*:x \to \tau f(x)\)</span>, i.e.&nbsp; <span class="math display">\[
+\text{cov}[\tau f|\tau] = \tau^2K.
+\]</span></p>
 <div class="no-row-height column-margin column-container"><div id="ref-gramacy2020surrogates" class="csl-entry" role="listitem">
 2. Gramacy RB. Surrogates: Gaussian process modeling, design, and optimization for the applied sciences. Chapman; Hall/CRC; 2020.
-</div></div><div class="cell">
+</div></div><p>It is worth noting that the the MLE of <span class="math inline">\(\tau\)</span> is a function of <span class="math inline">\(f\)</span> which indicates that the observed data are now involved in the uncertainty, compared to the formula in <a href="#fig-02">Figure&nbsp;2</a>.</p>
+<div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>tau2hat<span class="ot">&lt;-</span> <span class="fu">drop</span>(<span class="fu">t</span>(y_obs_new)<span class="sc">%*%</span>C_obs<span class="sc">%*%</span>y_obs_new<span class="sc">/</span><span class="fu">length</span>(y_obs_new))</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>K_D_new_up <span class="ot">=</span> tau2hat<span class="sc">*</span>K_D_new</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="do">####</span></span>
@@ -301,6 +305,7 @@ K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]
 </div>
 </div>
 </div>
+<p>Let us compare <a href="#fig-05">Figure&nbsp;5</a> to <a href="#fig-04">Figure&nbsp;4</a>.</p>
 
 </section>
 

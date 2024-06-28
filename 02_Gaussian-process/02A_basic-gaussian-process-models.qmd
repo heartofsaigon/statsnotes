@@ -117,10 +117,9 @@ $$
 \text{ where } \\
 &\mu_D(x) = \mu(x) + \kappa(x)^{\top}\boldsymbol{C}^{-1}(\boldsymbol y - \boldsymbol m)  \\
 &K_D(x,x_*) = K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)
-\end{aligned}
+\end{aligned},
 $$ {#eq-02}
-
-
+without loss of generality, we can assume $\boldsymbol\mu = \boldsymbol m = \boldsymbol 0$.  
 The above setting is the brief summary of the GP. We now specify the conditional GP whose prior is shown in @fig-02 and the observed data $D$ is shown in @fig-01. Note that the covariance matrix is calculated using the squared exponential, i.e. $K(x,x_*) = \exp\{-(x-x_*)^2\}$.
 
 ```{r}
@@ -175,15 +174,22 @@ Compared to @fig-03, the uncertainty about the true function (red line) is lower
 $$
 p(\boldsymbol y) = \mathcal{N}(\boldsymbol y; \mu, \tau^2\boldsymbol C),
 $$
+which is analogous to defining $f_* = \tau f$.
+
 We then can calculate the maximum likelihood estimator of $\tau^2$ as follows   
 $$
 \hat\tau^2_{ML} = \frac{\boldsymbol y^{\top}\boldsymbol\Sigma^{-1}\boldsymbol y}{\text{length}(\boldsymbol y)},
 $$
 detail can be find in Gramacy et al.[@gramacy2020surrogates] We now plug-in $\hat\tau^2_{ML}$ into @eq-02. Technically, this leads to multivariate student-$t$ distribution, but we assume that the degree of freedom is large enough to approximate the $t$ using the normal distribution.[@gramacy2020surrogates]. The mean $\mu_D$ remains unchanged, but the covariance matrix changes to the following form:
 $$
-K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML};
+K_D(x,x_*) = \big[K(x,x_*) - \kappa(x)^{\top}\boldsymbol{C}^{-1}\kappa(x_*)\big]\hat\tau^2_{ML},
 $$ {#eq-03}
-it is worth noting that the the MLE of $\tau$ is a function of $f$ which indicates that the observed data are now involved in the uncertainty, compared to the formula in @fig-02. 
+which can be deduced from the new setting $f_*:x \to \tau f(x)$, i.e. 
+$$
+\text{cov}[\tau f|\tau] = \tau^2K.
+$$
+
+It is worth noting that the the MLE of $\tau$ is a function of $f$ which indicates that the observed data are now involved in the uncertainty, compared to the formula in @fig-02. 
 
 ```{r}
 #| label: fig-05
@@ -204,6 +210,13 @@ matplot(x_pr, t(ci), col = "black", lty = 1, add = T, type = "l")
 #lines(x, m )
 lines(x_obs, y_obs_new, pch = 16, col = "red", type = "o", cex = 1.2)
 ```
+
+Let us compare @fig-05 to @fig-04.
+
+
+
+
+
 
 
 
