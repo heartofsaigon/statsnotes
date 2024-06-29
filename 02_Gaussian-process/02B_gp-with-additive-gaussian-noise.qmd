@@ -24,12 +24,14 @@ editor: source
 editor_options: 
   chunk_output_type: console
 execute: 
-  eval: false
+  eval: true
 ---
 
 \renewcommand{\bf}[1]{\boldsymbol{#1}}
 
 ## Recap the inference with exact function evaluations
+
+We adopt notations in Garnett et al.[@garnett2023bayesian] 
 
 Having observed $f$ at locations $\bf x$, we define $\bf\phi = f(\bf x)$, and $D = (\bf x, \bf\phi)$. Also suppose that 
 $$
@@ -45,7 +47,7 @@ and we then have
 $$
 \begin{aligned}
 p(f|D) &= \mathcal{GP}(f;\mu_D, K_D), \text{ where }\\
-&\mu_D = \mu(x) + K(x,\bf x)\Sigma^{-1}(\bf\phi - \bf\mu),\\
+&\mu_D(x) = \mu(x) + K(x,\bf x)\Sigma^{-1}(\bf\phi - \bf\mu),\\
 &K_D(x,x_*) = K(x,x_*) - K(x, \bf x)\Sigma^{-1}K(\bf x, x)
 \end{aligned}
 $$ {#eq-02}
@@ -59,14 +61,172 @@ $$
 
 Under the assumption of homoscedastic noise we have $\bf N = \sigma^2_n\bf I$ and, thus,
 $$
-p(\bf y|\bf x,\bf N) = \mathcal{N}
+p(\bf y|\bf x,\bf N) = \mathcal{N}(\bf y; \bf\mu,\bf\Sigma+\bf N).
 $$
+The covariance $\kappa(x) = \text{cov}[\bf y,\phi|\bf x, x]$ remains unchanged, i.e. equals $K(\bf x, x)$. Conditional on observed $\bf x$, the GP posterior is 
+$$
+\begin{aligned}
+&\mu_D(x) = \mu(x) + K(x, \bf x)(\bf\Sigma+\bf N)^{-1}(\bf y - \bf\mu)\\
+&K_D(x,x_*) = K(x,x_*) - K(x,\bf x)(\bf\Sigma + \bf N)^{-1}K(\bf x, x_*)
+\end{aligned}
+$$ {#eq-03}
+
+## Some examples
+
+We shall consider the function 
+$$
+y = \cos(x),\quad x \in[0, 12\pi]
+$$
+which is deterministic. Suppose we observed $30$ data points that are shown in @fig-01
+
+```{r}
+#| label: fig-01
+#| fig-cap: $y = \sin(x)$. The gray area represents GP $p(\bf\phi|\bf x)= \mathcal{GP}(\bf\phi; \bf 0, \exp\{-\frac{\text{distance}^2(\bf x)}{2}\})$
+
+if(!library(pacman, logical.return = T)) install.packages("pacman")
+pacman::p_load(tidyverse, plgp, laGP, mvtnorm)
+#---------------------------------------------
+
+xx = matrix(seq(0, 12*pi, length.out=100), ncol=1)
+dd = distance(xx)
+SS = exp(-dd/2)
+yy = mvtnorm::rmvnorm(200, sigma = SS)
+matplot(xx, t(yy), type = "l", lty = 1, ylim = c(-6,6), col = "grey85",
+       xlab = "x", ylab = expression(sin~'(x)'))
+
+#---------------------------------------------
+
+set.seed(1111)
+x = seq(pi,10*pi,length.out=100)|>
+  {\(i) i[sample(100, 30)] }()|>
+  sort()|>
+  matrix(ncol = 1)
+
+y = cos(x)
+d = distance(x)
+S = exp(-d/2)
+
+points(x, y, pch = 16, col = "red", ylim = c(-5,5))
+```
+
+If there is no additive error term, the fitting GP is shown in @fig-02.
+
+```{r}
+#| label: fig-02
+#| fig-cap: Standard GP without error term.
+
+d_xxx = distance(x,xx)
+SSS = exp(-d_xxx/2)
+
+mu = t(SSS)%*%solve(S)%*%as.matrix(y)
+sigma = SS - t(SSS)%*%solve(S)%*%SSS
+
+y_pos = mvtnorm::rmvnorm(10000, mu, sigma)|> t()
+ci = apply(y_pos,1, HDInterval::hdi)
+m = apply(y_pos,1, mean)
+
+matplot(xx, t(ci), type = "l", col = "black", lty = 1, ylim = c(-5,5), xlab = "x", ylab = "y" )
+for(i in sample(10000,300)) lines(xx, y_pos[,i], col = "grey90")
+matplot(xx, t(ci), col = "black", lty = 1, add = T, type = "l")
+#lines(x, m )
+points(x, y, pch = 16, col = "red")
+lines(xx,m,col = "blue")
+```
+
+We now add the error term $p(\varepsilon) =\mathcal{N}(\varepsilon; \mu =0,\sigma =1)$ to the data but fitting the GP without considering the error. The resulting posterior seems overfitting. 
+
+```{r}
+#| label: fig-03
+#| fig-cap: the data with additive error $\mathcal{N}(\varepsilon; \mu =0,\sigma =1)$ but the GP is fitted without considering the error. 
+
+set.seed(11)
+SD = 1
+y = cos(x)+ rnorm(length(x), sd = SD)
+d = distance(x)
+S = exp(-d/2)
 
 
+SD = 0 # seq(0.01,0.2, length.out = length(x))
+N = diag(SD^2, length(x))
+
+mu = t(SSS)%*%solve(S+N)%*%as.matrix(y)
+sigma = SS - t(SSS)%*%solve(S+N)%*%SSS
+
+y_pos = mvtnorm::rmvnorm(10000, mu, sigma)|> t()
+ci = apply(y_pos,1, HDInterval::hdi)
+m = apply(y_pos,1, mean)
+
+matplot(xx, t(ci), type = "l", col = "black", lty = 1, ylim = c(-15, 15), xlab = "x", ylab = "y" )
+for(i in sample(10000,200)) lines(xx, y_pos[,i], col = "gray")
+matplot(xx, t(ci), col = "black", lty = 1, add = T, type = "l")
+#lines(x, m )
+lines(x, y, pch = 16, col = "red", type = "o", lty = 2)
+lines(xx, m, pch = 16, col = "blue", type = "l", cex = 1.2)
+```
+
+Next, we fit the GP where the hyperparameter $\sigma = 0.5$ in the error term is considered. The resulting posterior is shown in @fig-04 
+
+```{r}
+#| label: fig-04
+#| fig-cap: The posterior GP fitted using $\sigma=1$.
+
+set.seed(11)
+SD = 1
+y = cos(x)+ rnorm(length(x), sd = SD)
+d = distance(x)
+S = exp(-d/2)
 
 
+SD = 0.68 # seq(0.01,0.2, length.out = length(x))
+N = diag(SD^2, length(x))
+
+mu = t(SSS)%*%solve(S+N)%*%as.matrix(y)
+sigma = SS - t(SSS)%*%solve(S+N)%*%SSS
+
+y_pos = mvtnorm::rmvnorm(10000, mu, sigma)|> t()
+ci = apply(y_pos,1, HDInterval::hdi)
+m = apply(y_pos,1, mean)
+
+matplot(xx, t(ci), type = "l", col = "black", lty = 1, ylim = c(-15, 15), xlab = "x", ylab = "y" )
+for(i in sample(10000,200)) lines(xx, y_pos[,i], col = "gray")
+matplot(xx, t(ci), col = "black", lty = 1, add = T, type = "l")
+#lines(x, m )
+lines(x, y, pch = 16, col = "red", type = "o", lty = 2)
+lines(xx, m, pch = 16, col = "blue", type = "l")
+```
+
+A question arising is how do we know $\sigma=1$? There emerges a range of solutions to specify $\sigma$. If we assign a pre-specified level of uncertainty into $\sigma$, a full Bayesian method can be employed. An alternative, which can save computational time complexity, is the maximum likelihood estimation calculated using the observed data. However, proceeding MLE sometimes reaches an impasse as the derivative of some density functions is not a piece of cake.
+
+$\hat\sigma_{ML}$ can be specified numerically as follows: 
+
+```{r}
+
+set.seed(1111)
+x = seq(pi,10*pi,length.out=100)|>
+  {\(i) i[sample(100, 30)] }()|>
+  sort()|>
+  matrix(ncol = 1)
+
+set.seed(11)
+SD = 1
+y = cos(x)+ rnorm(length(x), sd = SD)
 
 
+f = function(g,x,y){
+  
+  D = distance(x)
+  S = exp(-D/2)
+  
+  n = length(y)
+  N = diag(g^2, n)
+  K = S+N
+  
+  -mvtnorm::dmvnorm(x = drop(y), sigma = K, log = T)
+}
+g = optimise(f, c(-3,4), y = y, x = x)$minimum; g
+```
+
+The resulting estimator $\hat\sigma_{ML} =$ `r round(g,3)`  which is close to the pre-specified SD of $1$ that is used to define the error $\varepsilon$. The SD of `r round(g,3)` is also used to fit the GP in @fig-04.
 
 
 
