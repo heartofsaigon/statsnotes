@@ -8,3 +8,8 @@
 1. Basic Gaussian process [*(read me)*](https://heartofsaigon.github.io/writing-collection/02_Gaussian-process/02A_basic-gaussian-process-models.html)
 
 2. GP with Additive Gaussian Noise [*(read me)*](https://heartofsaigon.github.io/writing-collection/02_Gaussian-process/02B_gp-with-additive-gaussian-noise.html)
+
+## BayesOpt
+
+1. Optimization with GP [*(read me)*](https://heartofsaigon.github.io/writing-collection/03_BayesOpt/03A_optimization-with-GP.html)
+
