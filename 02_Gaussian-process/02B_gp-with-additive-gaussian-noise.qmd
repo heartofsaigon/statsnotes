@@ -195,7 +195,7 @@ lines(x, y, pch = 16, col = "red", type = "o", lty = 2)
 lines(xx, m, pch = 16, col = "blue", type = "l")
 ```
 
-A question arising is how do we know $\sigma=1$? There emerges a range of solutions to specify $\sigma$. If we assign a pre-specified level of uncertainty into $\sigma$, a full Bayesian method can be employed. An alternative, which can save computational time complexity, is the maximum likelihood estimation calculated using the observed data. However, proceeding MLE sometimes reaches an impasse as the derivative of some density functions is not a piece of cake.
+A question arising is how do we know $\sigma=1$? There exists a range of solutions to specify $\sigma$. If we assign a pre-specified level of uncertainty into $\sigma$, a full Bayesian method can be employed. An alternative, which can save computational time complexity, is the maximum likelihood estimation calculated using the observed data. However, proceeding MLE sometimes reaches an impasse as the derivative of some density functions is not a piece of cake.
 
 $\hat\sigma_{ML}$ can be specified numerically as follows: 
 

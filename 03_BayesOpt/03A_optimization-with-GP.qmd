@@ -1,0 +1,165 @@
+---
+title: "Optimization with GP"
+subtitle: |
+date: '`r Sys.Date()`'
+author: Nam-Anh Tran
+format:
+  html: 
+    theme: darkly
+    toc: false
+fontsize: 12pt
+reference-location: margin
+citation-location: margin
+number-sections: true
+fig-cap-location: bottom
+fig-height: 6
+fig-width: 8.5
+link-citations: true
+linkcolor: deeppink
+indent: true
+classoption: [onecolumn, portrait]
+bibliography: 03_references.bib
+csl: ../vancouver.csl
+editor: source
+editor_options: 
+  chunk_output_type: console
+execute: 
+  eval: true
+  warning: false
+---
+
+\renewcommand{\bf}[1]{\boldsymbol{#1}}
+
+```{r}
+if(!library(pacman, logical.return = T)) install.packages("pacman")
+pacman::p_load(tidyverse, plgp, laGP, lhs, mvtnorm, plotly, knitr, kableExtra)
+```
+
+## Motivations
+
+We aim to optimize the function $f(x)$, i.e.
+
+$$
+x_* = \arg\max_{x \in \mathcal X}f(x)
+$$
+
+The traditional solution proceeds by evaluating the function $f$ and taking derivative. Many variants of this framework has been proposed to overcome the challenges of taking derivative, since this step sometimes is not a piece of cake. This impasse can sometimes appears at the step of function evaluation, i.e. the structure of $f$ is a blackbox and, thus, taking derivative is impossible. Thus, the Bayesian optimization appears as a solution for this problem.  
+
+## Basic examples
+
+Let consider the following function which does not have a closed-form. Note that examples in this section can be found in Gramacy et al.[@gramacy2020surrogates] 
+
+```{r}
+#| label: fig-01
+#| fig-cap: "The surface of the objective function."
+
+
+obj_func <- function(X)
+{
+if(is.null(nrow(X))) X <- matrix(X, nrow=1)
+m <- 8.6928
+s <- 2.4269
+x1 <- 4*X[,1] - 2
+x2 <- 4*X[,2] - 2
+
+a <- 1 + (x1 + x2 + 1)^2 *
+(19 - 14*x1 + 3*x1^2 - 14*x2 + 6*x1*x2 + 3*x2^2)
+b <- 30 + (2*x1 - 3*x2)^2 *
+(18 - 32*x1 + 12*x1^2 + 48*x2 - 36*x1*x2 + 27*x2^2)
+f <- log(a*b)
+f <- (f - m)/s
+return(f)
+}
+#--------------------
+
+xx = seq(0,1, 0.01)
+xx2d = expand.grid(xx,xx)
+yy = obj_func(xx2d)
+yymat = matrix(yy, nrow = length(xx), byrow = TRUE)
+
+fig1<-
+  plot_ly(x = xx,y = xx, z = yymat, type = "surface", colors = c("gray50"),
+        showscale = F, opacity = .7)
+
+fig1
+```
+
+```{r}
+#| label: fig-02
+#| fig-cap: "The contour of the objective function."
+
+fig2<-
+  plot_ly(x = xx,y = xx, z = yymat, type = "contour",
+        showscale = F, opacity = .7, colors = "gray", contours = list(showlabels = TRUE))
+fig2
+```
+
+
+```{r}
+#| warning: false
+#| label: fig-03
+#| fig-cap: "Contour and the initial design."
+
+set.seed(4444)
+ninit <- 20
+X <- randomLHS(ninit, 2)
+y <- obj_func(X)
+####
+fig2|> add_trace(x = X[,1], y = X[,2],z = yymat, type = "scatter", mode = "markers", marker = list(color = "blue"), showlegend = F)
+```
+
+```{r}
+#| label: fig-04
+#| fig-cap: The red dots are the optimal desing points.
+
+da <- darg(list(mle=TRUE, max=0.5), randomLHS(1000, 2))
+gpi <- newGPsep(X, y, d=da$start, g=1e-6, dK=TRUE)
+mleGPsep(gpi, param="d", tmin=da$min, tmax=da$max, ab=da$ab)$msg
+####
+obj.mean <- function(x, gpi) predGPsep(gpi, matrix(x, nrow=1), lite=TRUE)$mean
+####
+
+opt_ls<- c()
+  
+repeat {
+m <- which.min(y)
+opt <- optim(X[m,], obj.mean, lower=0, upper=1,
+method="L-BFGS-B", gpi=gpi)
+ynew <- obj_func(opt$par)
+opt_ls<- rbind(opt_ls, c(opt$par, ynew))
+if(abs(ynew - y[length(y)]) < 1e-4) break;
+updateGPsep(gpi, matrix(opt$par, nrow=1), ynew)
+mle <- mleGPsep(gpi, param="d", tmin=da$min, tmax=da$max, ab=da$ab)
+X <- rbind(X, opt$par)
+y <- c(y, ynew)
+}
+deleteGPsep(gpi)
+
+plot_ly(x = xx,y = xx, z = yymat, type = "contour",
+        showscale = F, opacity = .7, contours = list(showlabels = TRUE), colors = "gray")|> 
+  add_trace(x = X[,1], y = X[,2], type = "scatter", mode = "markers", marker = list(color = "blue"), showlegend = F)|>
+  add_trace(x = opt_ls[,1], y = opt_ls[,2], type = "scatter", mode = "lines", marker = list(color = "red"), showlegend = F)
+```
+
+
+```{r}
+#| column: margin
+#| label: tbl-01
+#| tbl-cap: this is
+
+compose(as_tibble, data.frame)(opt_ls)|>
+  rename(Y = "X3")|>
+  round(5)|>
+  arrange(Y)|>
+  knitr::kable()|>
+  kable_styling(bootstrap_options = c("striped", "hover"))|>
+  row_spec(0, background = "deeppink")|>
+   scroll_box(height = "300px")
+  
+```
+
+
+
+
+
+
