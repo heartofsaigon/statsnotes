@@ -13,3 +13,4 @@
 
 1. Optimization with GP [*(read me)*](https://heartofsaigon.github.io/writing-collection/03_BayesOpt/03A_optimization-with-GP.html)
 
+2. BO with constraints [*(read me)*](https://heartofsaigon.github.io/writing-collection/03_BayesOpt/03B_CBO.html)
