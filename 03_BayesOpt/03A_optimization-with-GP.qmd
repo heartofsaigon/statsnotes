@@ -32,7 +32,7 @@ execute:
 
 ```{r}
 if(!library(pacman, logical.return = T)) install.packages("pacman")
-pacman::p_load(tidyverse, plgp, laGP, lhs, mvtnorm, plotly, knitr, kableExtra)
+pacman::p_load(tidyverse, plgp, laGP, lhs, mvtnorm, plotly, knitr, kableExtra, ggpubr)
 ```
 
 ## Motivations
@@ -129,7 +129,7 @@ ynew <- obj_func(opt$par)
 opt_ls<- rbind(opt_ls, c(opt$par, ynew))
 if(abs(ynew - y[length(y)]) < 1e-4) break;
 updateGPsep(gpi, matrix(opt$par, nrow=1), ynew)
-mle <- mleGPsep(gpi, param="d", tmin=da$min, tmax=da$max, ab=da$ab)
+#mle <- mleGPsep(gpi, param="d", tmin=da$min, tmax=da$max, ab=da$ab)
 X <- rbind(X, opt$par)
 y <- c(y, ynew)
 }
@@ -155,7 +155,69 @@ compose(as_tibble, data.frame)(opt_ls)|>
   kable_styling(bootstrap_options = c("striped", "hover"))|>
   row_spec(0, background = "deeppink")|>
    scroll_box(height = "300px")
-  
+```
+
+
+## The policy `expected improvement` 
+
+Suppose that we aim to minimize the objective function $f$, i.e.
+$$
+x_* = \arg\min_{x \in \mathcal{X}}f(x).
+$$
+
+We need a measure of improvement and the following function is commonly used
+$$
+I(x) = \max\{0, f^{min}_m - y(x)\},
+$$
+and thus the next selected design point will optimize the *expected improvement (EI)* calculated using the posterior predictive distribution. the function can be approximated as follows:
+$$
+EI(x) \approx \frac{1}{R}\sum_{r=1}^R \max\{0, f^{min}_m - y^{(r)}\},
+$$
+where $y^{(r)}$ is simulated using $y(x)|D$. Fortunately, $EI$ has a closed-form as follows
+$$
+EI(x) = (f^{min}_m  - \mu_n(x))\Phi\bigg(\frac{f^{min}_m - \mu_n(x)}{\sigma_n(x)}\bigg) + \sigma_n(x)\phi\bigg(\frac{f^{min}_m - \mu_n(x)}{\sigma_n(x)}\bigg)
+$$
+
+
+
+```{r}
+#| eval: false
+#| echo: false
+
+rm(list = ls())
+x <- c(1, 2, 3, 4, 12)
+y <- c(0, -1.75, -2, -0.5, 5)
+
+gpi <- newGP(matrix(x, ncol=1), y, d=10, g=1e-8) # fitting GP
+xx <- seq(0, 13, length=1000) # the design
+pred <- predGP(gpi, matrix(xx, ncol=1)) # posterior GP
+
+fmin = y[which.min(y)]
+d = fmin - pred$mean
+s = sqrt(pred$Sigma|> diag())
+dn = d/s
+ei =  d*pnorm(dn) + s*dnorm(dn)
+
+ci<-
+mvnfast::rmvn(10000, pred$mean, pred$Sigma)|>
+  apply(2, HDInterval::hdi)
+
+dat = tibble(x = xx, m = pred$mean, upper = ci[2,], lower = ci[1,], ei = ei)
+
+g1<-
+ggplot(dat, aes(x = x))+ 
+  geom_line(aes(y = m), color = "black")+
+  geom_line(aes(y = lower), color = "deeppink")+
+  geom_line(aes(y = upper), color = "deeppink")+
+  geom_point(data = tibble(x = x, y=y), mapping = aes(x = x, y = y))+
+  theme( panel.grid  = element_blank(), plot.margin = margin(0.1,.2,0.05,.65, "cm"))
+
+g2<- ggplot(dat, aes(x = x, y = ei))+ geom_line()+
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(), 
+        panel.grid  = element_blank())+
+  scale_x_continuous(breaks = NULL)
+
+ggpubr::ggarrange(g2, g1, nrow = 2)
 ```
 
 
