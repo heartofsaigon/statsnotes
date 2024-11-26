@@ -1,0 +1,4 @@
+- source: presentation.qmd
+  quarto-pub:
+    - id: b1a24f72-c288-45d6-9156-0d4067dccb75
+      url: 'https://nam-anh.quarto.pub/bayesian-model-selection-for-generalized-linear-mixed-models'
