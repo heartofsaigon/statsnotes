@@ -29,7 +29,27 @@
       margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
       vertical-align: middle;
     }
-  </style>
+    /* CSS for citations */
+    div.csl-bib-body { }
+    div.csl-entry {
+      clear: both;
+      margin-bottom: 0em;
+    }
+    .hanging-indent div.csl-entry {
+      margin-left:2em;
+      text-indent:-2em;
+    }
+    div.csl-left-margin {
+      min-width:2em;
+      float:left;
+    }
+    div.csl-right-inline {
+      margin-left:2em;
+      padding-left:1em;
+    }
+    div.csl-indent {
+      margin-left: 2em;
+    }  </style>
   <link rel="stylesheet" href="presentation_files/libs/revealjs/dist/theme/quarto.css">
   <link href="presentation_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
   <link href="presentation_files/libs/revealjs/plugin/reveal-menu/menu.css" rel="stylesheet">
@@ -327,7 +347,7 @@
 
 <section id="title-slide" class="quarto-title-block center">
   <h1 class="title">Bayesian model selection for generalized linear mixed models</h1>
-  <p class="subtitle">Authors: <span class="citation" data-cites="xu2023bayesian">(<a href="" role="doc-biblioref" onclick="return false;"><strong>xu2023bayesian?</strong></a>)</span></p>
+  <p class="subtitle">Authors: <span class="citation" data-cites="xu2023bayesian">Xu et al. (<a href="#/references" role="doc-biblioref" onclick="">2023</a>)</span></p>
 
 <div class="quarto-title-authors">
 <div class="quarto-title-author">
@@ -620,11 +640,16 @@ p^b(M_c|\boldsymbol y) = BF^b_{cl} \times \frac{P(M_c)}{\sum^C_{k=1}BF_{kl}^b\ti
 <iframe width="100%" height="100%" src="BIOS612_PaperDiscussion_2.pdf">
 </iframe>
 </section>
-<section id="references" class="slide level2">
+<section id="references" class="slide level2 smaller scrollable">
 <h2>References</h2>
 <div class="quarto-auto-generated-content">
 <div class="footer footer-default">
 
+</div>
+</div>
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-xu2023bayesian" class="csl-entry" role="listitem">
+Xu, Shuangshuang, Marco AR Ferreira, Erica M Porter, and Christopher T Franck. 2023. <span>“Bayesian Model Selection for Generalized Linear Mixed Models.”</span> <em>Biometrics</em> 79 (4): 3266–78.
 </div>
 </div>
 </section></section>
