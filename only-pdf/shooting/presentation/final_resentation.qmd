@@ -1,0 +1,458 @@
+---
+title: "State‑Level Spatial Analysis of Shooting Incidents in the United States"
+author: "Nam-Anh Tran"
+format: 
+  revealjs:
+    center: true
+    theme: dark
+    fontsize: 23pt
+editor: source
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+rm(list = ls())
+pacman::p_load(tidyverse, rstan, sf, tigris, ggpubr, kableExtra, spdep, yarrr,
+               spdep, cmdstanr, posterior, HDInterval, INLA, Matrix, 
+               USAboundaries,viridis,corrplot,mapview, RColorBrewer, GGally, leafsync,
+               tigris, cmdstanr, gridGraphics, grid, ggplotify, gridExtra)
+
+sf_use_s2(FALSE)
+dat<- read_csv(file = "tiny_dat.csv")
+#---
+states_map <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
+states_map$state_id <- 1:nrow(states_map)
+states_map <- st_make_valid(states_map)
+centroids <- st_centroid(st_geometry(states_map))
+coords <- st_coordinates(centroids)
+states_map$lon <- coords[, 1]
+states_map$lat <- coords[, 2]
+
+joint_mydat = left_join(states_map, dplyr::select(dat, state, sir, case, population), by = c("ID" = "state"))
+shooting_cases = read_csv(file = "coord-case.csv")|>
+  `names<-`(c('longitude', 'latitude'))
+
+shooting_cases_sf <- st_as_sf(shooting_cases, coords = c("longitude", "latitude"), crs = 4326)
+#----
+```
+
+
+## Agenda
+
+1. Introduction
+2. Data extraction and exploration
+3. Analysis
+4. Results
+5. Discussion
+
+## Introduction 
+
+**_Gun Violence as a Public Health Crisis_**
+
+:::{.column width="50%"}
+
+- In 2018, the U.S. saw over 39,000 gun-related deaths.
+- Gun violence is now the leading cause of death for children and teens.
+- Community shootings often occur in spatial clusters, not in isolation.
+:::
+
+:::{.column width="50%"}
+![](p02.png){fig-align="center"}
+:::
+
+
+## Introduction
+
+:::: {.columns style="display: flex; align-items: center; justify-content: center; min-height: 400px;"}
+
+::: {.column width="40%"}
+**_Unequal Burden Across States_**
+
+- States differ widely in gun laws, social conditions, and urbanization.
+- These differences result in substantial variation in shooting rates.
+- Some regions experience persistently elevated risks, even when adjusting for population size.
+:::
+
+::: {.column width="60%"}
+```{r}
+#| fig-width: 6
+#| fig-height: 4
+ggplot() +
+  geom_sf(data = states_map, fill = "gray90", color = "black") +
+  geom_sf(data = shooting_cases_sf, color = "red", alpha = 0.3, size = 1) +
+  coord_sf() +
+  labs(title = "Shooting Cases in U.S. States in 2018",
+       x = "Longitude",
+       y = "Latitude") +
+  theme_minimal()
+```
+:::
+
+::::
+
+
+## Introduction
+
+- Our goal is to uncover geographic patterns and influential predictors of shooting incidents across U.S. states in 2018.
+
+**_Why It Matters_**
+
+- Helps guide state-level policy interventions.
+- Equips public health leaders with data for resource targeting.
+- Supports equity-driven violence prevention strategies.
+
+
+## Data extraction and exploration
+
+Data include shooting counts and population in 49 states, extracted from [gunviolencearchive.org](gunviolencearchive.org){preview-link="true"}.
+
+Covariates were extracted from [data.census.gov](https://data.census.gov/) and other sites. We searched for state-level covariates that potentially impact shooting incident in the literature. 
+
+- *Demographic Variables:* median age, urbanization percentage.
+- *Socioeconomic variables:* percentage of bachelor/higher degree, poverty, unemployment, income, drug use.
+- *Gun related-variables:* gun policy score. 
+
+We also considered *gun ownership* and *alcohol consuming* but they are highly correlated with gun policy and drug use, respectively.   
+
+## Data extraction and exploration
+
+```{r}
+#| fig-align: center
+#| fig-height: 6
+a<-
+  select(dat, -state, -case, -population, -E, -sir)|>
+  cor()
+
+colnames(a)<- rownames(a)<- c("Gun policy", "Age", "Bac/higher degree", "Unemployment", "Urban", "Drug use", "Poverty", "Income")
+
+corrplot(a, method = "number")
+#ggpairs(a)
+```
+
+- Remove `income` due to its high correlation with `Bachelor/higher degree` and `Gun policy`.
+- Fit Poisson regression with independent residuals using spike-and-slab priors to evaluate the contributions of `gun policy` and `Bachelor/higher degree`.   
+
+## Data extraction and exploration
+
+We use standardized incidence ratio (SIR) as the population size vary across states. 
+
+```{r}
+#| fig-align: center
+state_data<-
+select(dat, state, population)|>
+  arrange(desc(population))
+
+# Create the bar plot
+ggplot(state_data, aes(x = reorder(state, -population), y = population)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  theme_minimal() +
+  labs(title = "Population by State (49 regions)",
+       x = "State",
+       y = "Population") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+## Data extraction and exploration
+
+```{r}
+#| fig-align: center
+#| fig-height: 3.8
+
+mapview(joint_mydat, zcol = "sir", color = "gray", alpha.regions = 0.8,
+        map.types = "CartoDB.Positron" ,
+        legend.args = list(title = "SIR"))
+
+# ggplot(joint_mydat) +
+#   geom_sf(aes(fill = sir), color = "black") +
+#   scale_fill_gradientn(colors = c("white", "palevioletred1" , "palevioletred2",
+#                                   "palevioletred3" , "palevioletred4")) +
+#   labs(title = "Shooting Cases in U.S. States in 2018",
+#        fill = "SIR") +
+#   xlab("longitude")+
+#   ylab("latitude")+
+#   theme_minimal()
+
+```
+
+- The map shows that several adjacent states share similarly high or low SIR values.
+- These clusters indicate a potential spatial structure—regions with higher-than-expected shooting rates are often neighbouring each other.
+- $\mathrm{SIR} > 1$ indicates the observed cases are higher than expected from the standard population.
+
+## Data extraction and exploration
+
+We obtain global and local Moran test to evaluate the spatial structure. 
+
+:::: {.columns}
+
+::: {.column width="30%"}
+Global test:
+
+```{r}
+queen_nb <- poly2nb(joint_mydat, queen = TRUE)
+coords<-
+  joint_mydat|>
+  st_geometry()|>
+  st_centroid()|>
+  st_coordinates()
+queen_weights <- nb2listw(queen_nb, style = "B")
+gmoran = moran.test(joint_mydat$sir, listw = queen_weights)
+tibble(Measure = c("statistic", "estimate", "p.value"), 
+       Value = c(gmoran$estimate[1:2], gmoran$p.value))|>
+  kable(digits = 2)
+```
+:::
+
+::: {.column width="70%"}
+Local test:
+
+```{r}
+
+queen_weights_B <- nb2listw(queen_nb, style = "B")
+
+lmoran <- localmoran(dat$sir, queen_weights_B, alternative = "greater")
+states_map<- cbind(joint_mydat, p.value = ifelse(lmoran[,"Pr(z > E(Ii))"] < 0.05, "significant","not significant"))
+joint_mydat<- cbind(joint_mydat,lmp =  lmoran[,"Pr(z > E(Ii))"])
+
+# mapview(states_map, zcol = "p.value", color = "gray",
+#         map.types = "CartoDB.Positron", col.regions = c("blue", "red"))
+
+ggplot(joint_mydat) +
+  geom_sf(aes(fill = lmp>0.05)) +
+  labs(title = "P.value",
+       fill = "P.value > 0.05") +
+  xlab("longitude")+
+  ylab("latitude")+
+  theme_minimal()
+```
+:::
+
+::::
+
+Global and local Moran tests indicate slight spatial autocorrelation, suggesting the need for modelling shooting incident to better reveal and adjust for local spatial dependencies and covariate effects.
+
+## Statistical methods - variable selection 
+
+- We fit the Poisson regression using Spike-and-Slab priors.
+
+$$
+\begin{aligned}
+&y_{i} \sim Pois(E_i\gamma_i)\\
+&\ln\gamma_i = \beta_0 + \boldsymbol{x}'_i\boldsymbol{\beta}_1 +\theta_{i}
+\end{aligned}
+$$
+**Prior distributions:**
+
+$$
+\begin{aligned}
+&\beta_0 \sim N(0,5);\quad \beta_{1j} \sim  \delta N(0,5) +  (1-\delta)N(0,0.001)\quad \\
+&\theta_i\sim N(0,\sigma^2),\quad 1/\sigma^2 \sim \mathrm{Gam}(1, 0.0260), \quad \delta \sim U(0,1)
+\end{aligned}
+$$
+
+## Statistical methods - variable selection 
+
+```{r}
+#| fig-align: center
+name = c(
+  "Gun policy", "Age", "Poverty", "Unemployment",
+  "bachelor/higher degree", "Urban", "Drug use" 
+)
+
+r_ind = read_rds("../03_result/ind.rds")
+r_ind$draws("inc_ind", format = "matrix")|>
+  apply(2, mean)|>
+  `names<-`(name)|>
+  {\(i) tibble(variable = names(i), percent = i*100) }()|>
+  arrange((percent))|>
+  mutate(variable = factor(variable, levels = variable))|>
+  ggplot(aes(x= variable, y = percent))+
+  geom_bar(stat = "identity")+
+  ylab('inclusion percentage')+
+  coord_flip()+
+   theme_minimal(base_size = 14)
+```
+
+- We remove `bachelor/higher degree` due to its strong correlation with `gun policy` and minimal contribution to the outcome.
+- `age` is also eliminated for its weak contribution.
+
+
+## Statistical methods - models
+
+We fit three models: CAR, BYM and BYM 2 and compare model fitting using WAIC.
+
+**BYM 2 model:**
+
+$$
+\begin{aligned}
+&Y_i \sim Pois(E_i\gamma_i); \quad \ln\gamma_i = \beta_0 + \boldsymbol{x}_i'\boldsymbol\beta_1 + \boldsymbol b_i,\\
+&\boldsymbol b_i = \sigma(\sqrt{1-\rho}\theta_i + \sqrt\rho\phi_i^*)
+\end{aligned}
+$$
+
+**BYM model:**
+
+$$
+\ln\gamma_i = \beta_0 + \boldsymbol{x}_i'\boldsymbol\beta_1 + \theta_i + \phi_i
+$$
+
+- models assume an additive linear relationship between covariates and the log-risk.
+- Also, spatial variation and unstructured noise both exist and are additive.
+
+## Statistical methods - models
+
+**Prior distributions (BYM 2)** 
+
+$$
+\begin{aligned}
+&\beta_0 \sim N(0,5);\quad \beta_{1j} \sim N(0,5); \quad \theta \sim N(0,1) \\
+&\sigma \sim N^+(0,1), \quad \rho \sim Beta(.5, .5)
+\end{aligned}
+$$
+and $\phi_i$ is the spatial random effect modelled with intrinsic conditional autoregressive model (CAR) that smooths the data according to a certain neighbourhood structure, 
+
+**Prior distributions (BYM)** 
+
+$$
+\begin{aligned}
+&\beta_0 \sim N(0,5);\quad \beta_{1j} \sim N(0,5); \\
+&\theta \sim N(0,\sigma^2_{\theta}); \quad 1/\sigma^2_{\theta} \sim Gam(1, 0.026)\\
+&1/\sigma^2_{\phi} \sim Gam(1,1)
+\end{aligned}
+$$
+
+## Model fitting 
+
+- All models, including the variable selection model, are fitted using `stan` in the R environment. 
+- `stan` employs full Bayesian inference via Hamiltonian Monte Carlo. 
+- We generate 2000 samples after 4000 warm-up iterations. 
+- Model convergence is assessed using $\hat{R}$, with values below 1.1 indicating convergence.
+
+
+## Results - WAIC of three models 
+
+```{r}
+
+bym2 = read_rds("../03_result/bym2.rds")
+bym = read_rds("../03_result/bym.rds")
+car = read_rds("../03_result/car.rds")
+
+tibble(Model = c("CAR", "BYM", "BYM 2"), WAIC = c(421.6, 420.6, 421))|>
+  kable(digits = 2)
+```
+
+From BYM 2, we have 
+
+```{r}
+bym2$summary("rho", mean, hdi)|>
+  kable(digits = 2)
+```
+
+- 95% HDI of $\rho$ indicates that neighbouring regions exhibit similarity in their outcomes, meaning that spatial clustering is indeed a real feature of the data. 
+- We select BYM 2 as the primary model, as its WAIC is slightly higher than that of BYM  
+
+## Results - Associated predictors 
+
+```{r}
+#| fig-align: center
+
+d.pre<-
+bym2$summary("beta", mean = ~mean(exp(.)), ~hdi(exp(.)))|>
+  mutate(variable = c("gun ownership",  "poverty", "unemployment", "urban", "drug use"))
+
+# Reorder for plotting (top to bottom)
+d.pre<- mutate(d.pre, variable = factor(variable, levels = rev(variable)))
+
+# Plot
+ggplot(d.pre, aes(x = mean, y = variable)) +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "gray50") +
+  labs(
+    x = "Posterior Mean (95% CrI)",
+    y = NULL,
+    title = "Forest Plot of Posterior Estimates"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+- We found evidence that as drug use increases by 1%, the RR increases by 8%, assuming all other covariates are held constant. This is supported by the 95% HDI [1.01, 1.15].  
+- Although the effect of urbanization is not evident, as indicated by the 95% HDI [0.98, 1], urbanization may have a harmful association with shooting incidents; further investigation is required to confirm this evidence.
+
+## Relative risk of shooting incidents by state
+
+We evaluate the risk of shooting incident relative to the expected baseline. 
+
+```{r}
+joint_mydat<- cbind(joint_mydat, bym2$summary("rr", mean, hdi)[,-1])|>
+  rename("RR" = mean, "SIR" = sir)
+
+mapview(joint_mydat, zcol = "RR", color = "gray",
+highlight = leaflet::highlightOptions(weight = 4),
+popup = leafpop::popupTable(dplyr::mutate_if(joint_mydat, is.numeric,
+                                              round, digits = 2),
+zcol = c("ID", "case", "SIR", "RR", "lower", "upper"),
+row.numbers = FALSE, feature.id = FALSE))
+```
+
+## Relative risk of shooting incidents by state 
+
+```{r}
+
+rr<-
+bym2$summary("rr", mean, hdi)|>
+  mutate(variable = dat$state)|>
+  mutate(`High RR` = ifelse(lower >1, "evident", "Not evident") )
+
+ggplot(rr, aes(x = reorder(variable, mean), y = mean, color = `High RR`)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+  # Reference line at RR=1
+  geom_hline(yintercept = 1, linetype = 2, color = "gray40") +
+  coord_flip() +
+  # A minimal theme often looks nice for forest plots
+  theme_minimal() +
+  labs(title = "Relative Risk (RR) of Shooting Incidents by State",
+       x = "State",
+       y = "RR (95% HDI)",
+       color = "High RR") +
+  scale_color_manual(values = c("evident" = "red", "Not evident" = "black"))
+```
+
+## Exceedance probabilities
+
+We calculate the probabilities of relative risk being greater than $1.5$.
+
+
+```{r}
+exc<-
+bym2$draws("rr", format = "matrix")|>
+  `colnames<-`(dat$state)|>
+  apply(2, \(i) i>1.5)|>
+  apply(2, mean)
+
+joint_mydat = cbind(joint_mydat, exc = exc)
+
+mapview(joint_mydat, zcol = "exc", color = "gray",
+        popup = leafpop::popupTable(dplyr::mutate_if(joint_mydat, is.numeric,
+                                              round, digits = 2),
+zcol = c("ID", "case", "SIR", "RR", "lower", "upper"),
+row.numbers = FALSE, feature.id = FALSE)
+        )
+```
+
+
+## Conclusion
+
+- Evidence links drug use to shooting incidents.  
+- New York has the lowest rate of shootings, while the District of Columbia has the highest.  
+- Out of 49 states, 20 have rates exceeding expected baselines.  
+- Alabama, Delaware, District of Columbia, Louisiana, and Mississippi exceed baselines by over 50% with a probability of 1.  
+- Future studies should consider temporal effects, which allow for describing temporal changes over years.
+
+
+
+
+
+
+

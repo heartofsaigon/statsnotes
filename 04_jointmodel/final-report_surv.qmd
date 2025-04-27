@@ -1,0 +1,345 @@
+---
+title: "A Simulation Study to Validate Joint Models Fitted for Longitudinal and Survival Data"
+author: Nam-Anh Tran
+# date: '`r Sys.Date()`'
+# date-format: "MMMM D, YYYY"
+format:
+  pdf:
+    aft-pdf:
+    documentclass: scrartcl
+    #pagestyle: headings
+    #papersize: us-letter
+    toc: false
+    toc-depth: 3
+    mathspec: true
+    extra_dependencies: ["flatter"]
+    classoption: [onecolumn, portrait, abstract]
+    mainfont: Times New Roman
+    fontsize: 12pt
+    include-in-header:
+      - text: |
+          \usepackage{setspace}
+          \usepackage{float}
+          \usepackage{fontspec}
+          \usepackage{fvextra}
+          \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+highlight-style: tango
+number-sections: true
+section-numbering: 1.1.a
+fig-cap-location: top
+fig-height: 4
+fig-width: 6
+fig-pos: false
+shift-heading-level-by: 0
+link-citations: true
+linkcolor: red
+margin-top: 2.5cm
+margin-bottom: 2.5cm
+margin-left: 2cm
+margin-right: 2cm
+indent: true
+bibliography: ../references.bib
+csl: ../vancouver.csl
+editor: source
+editor_options: 
+  chunk_output_type: console
+execute: 
+  warning: false
+  message: false
+  echo: false
+---
+
+\doublespacing
+
+# Introduction 
+
+Longitudinal data offer a unique lens for tracking biological processes over time, capturing both within-subject dynamics and between-subject variability. Linear mixed models are well-suited for such analyses, disentangling population-level trends (fixed effects) from individual deviations (random effects) to enable nuanced interpretation. Time-to-event outcomes, such as survival or disease progression, are critical for identifying the timing of key clinical events; however, analyzing them in isolation can overlook valuable information from longitudinal trajectories. Joint modelling addresses this by integrating longitudinal and survival data, capturing the evolving nature of biomarkers and their influence on event risk. To fully understand the strengths and limitations of this approach across different scenarios, a thorough investigation of its performance is essential. [@verbeke1997linear; @rizopoulos2012joint]
+
+Simulation studies are integral to validating the performance of joint models, particularly when integrating longitudinal and time-to-event data. By constructing controlled datasets with known parameter values, we can rigorously evaluate how accurately the joint model reconstructs individual longitudinal trajectories and associated event risks. We can also illuminate the interactions between the longitudinal and survival submodels, thereby guiding enhancements in model formulation and inference. Such comprehensive validation is essential prior to the application of the joint model to complex, real-world biomedical data, ensuring reliable, personalized risk assessments and informed clinical decision-making.
+
+The primary objective of this study is to evaluate the performance and robustness of a Bayesian joint model through the simulation of datasets that encompass both longitudinal and time-to-event outcomes. By generating controlled and synthetic data, we assess the model's capability to accurately capture the evolution of longitudinal trajectories alongside the associated event risks. The model is fitted using a Bayesian framework, which offers distinct advantages.
+
+While Bayesian linear mixed models are widely used for analysing longitudinal data, survival models are still predominantly estimated using Frequentist methods. In contrast, Bayesian approaches, particularly those adapting counting process formulations, are rarely applied to survival modelling. However, the Bayesian framework offers several distinct advantages: it enables full probabilistic inference through posterior distributions, facilitates uncertainty quantification, allows incorporation of prior knowledge, and provides greater flexibility in modelling complex time-to-event structures. Despite these strengths, the application of Bayesian methods in survival analysis remains limited, and comprehensive validation—especially in the context of joint modelling with longitudinal data—has not been fully explored. This study addresses that gap by evaluating both the survival component and its integration with longitudinal data under a Bayesian joint modelling framework. [@rizopoulos2012joint; @tsiatis2004joint]
+
+The remainder of this report is organized as follows: we first present the joint model, outlining its theoretical foundation and motivation for integrating longitudinal and time-to-event data. We then describe the simulation study, including the generation of realistic synthetic data and the Bayesian framework used for model fitting. Results are presented and discussed in relation to existing literature, highlighting key findings and limitations. The report concludes with a summary of insights and directions for future research.
+
+# Joint longitudinal and survival models
+
+Joint models include two sub-models: longitudinal and event time components. The longitudinal submodel is expressed as follows:
+$$
+y_{i}(t) = \boldsymbol{x}_{i}'(t)\boldsymbol{\beta} + \boldsymbol{z}_{i}'(t)\boldsymbol{b}_i + \epsilon_{i}(t),
+$$
+where $\{y_{i}(t)\}_{i=1}^n$ denotes the longitudinal outcome for $i$th subject at time $t$. The vector $\boldsymbol{x}_{i}(t)$ is a $p$-dimensional covariate vector associated with $i$th subject at time $t$. We frequently set the first element of the vector to 1 to account for the intercept. This vector includes both time-invariant and time-varying covariates. We can define $x_i(t) := x_i, \forall t$ to indicate the baseline covariate. The vector $\boldsymbol{\beta}$ represents the corresponding fixed effects, including the fixed intercept and regression coefficients. Similarly, $\boldsymbol{z}_{i}(t)$ is a covariate vector used for modelling random effects. $\boldsymbol{x}_{ij}$ and $\boldsymbol{z}_{i}(t)$ are not necessarily identical. The associated vector $\boldsymbol{b}_i \sim N(0,\Sigma_b)$ captures the subject-specific random effects. Finally, $\epsilon_{i}(t) \sim N(0,\sigma^2)$ denotes the residual error after accounting for both fixed and random effects.
+
+To simplifiy the process, we set $\boldsymbol x_{i}(t) = (1, \text{Treatment})$ and $\boldsymbol z_i(t)= (1,\mathrm{Time})$, where `Treatment` is a binary variable representing two arms of the study; `Time` is the discrete time point at which the longitudinal outcome is measured. The above model formula is rewritten as
+$$
+\begin{aligned}
+y_{ij} &= \beta_0 + \beta_1\text{Treatment}_i + b_{0i} + b_{1i}\text{Time}_{ij} + \epsilon_{ij}\\
+&\equiv m_i(t) + \epsilon_{ij},
+\end{aligned}
+$$ {#eq-01}
+where $m_i(t)$ is known as the trajectory function. The event time submodel is formulated as follows:
+$$
+h_i(t) = h_0(t)\exp\big\{\alpha_2m_i(t) + \boldsymbol w'_i\boldsymbol\alpha_1 \big\},
+$$
+where $h_i(t)$ denotes the hazard of an event for the $i$th subject at time $t$, and $h_0(t)$ represents the baseline hazard. The trajectory function serves as the link between the longitudinal and event-time components of the joint model. The parameter $\alpha_2$ quantifies the effect of the longitudinal trajectory on the hazard function. Vector $\boldsymbol{w}_i$ contains covariates specific to the $i$th subject, with $\boldsymbol{\alpha}_1$ denoting the corresponding coefficients. In this study, we assume that the covariates $\boldsymbol{w}_i = \text{Treatment}_i$ consist exclusively of baseline treatment, and that $m(t)$, the conditional mean of the longitudinal outcome given $\boldsymbol b$, is the only time-varying covariate. While $\alpha_2$ represents the indirect treatment effect on $h(t)$, as measured through longitudinal outcome, $\alpha_1$ represents the direct treatment effect on $h(t)$.  The event time submodel is then redefined as follows.
+$$
+h_i(t) = h_0(t)\exp\big\{\alpha_2m_i(t) + \alpha_1\text{Treatment}_i\big\}.
+$$ {#eq-02}
+
+
+It is essential to note that the trajectory function $m(t)$ can take various forms, often specified based on the underlying research objectives.  [@rizopoulos2012joint; @cremers2024joint] In this study, we adopt one of the earliest and most interpretable forms of the trajectory function, which facilitates a straightforward understanding of the overall treatment effect. [@ibrahim2010basic] Moreover, the joint modelling framework is not restricted to linear mixed models (as in Equation @eq-01,) it can be extended to generalized linear mixed models to accommodate discrete longitudinal outcomes. Such extensions have been previously explored by Faucett et al. [@faucett1996simultaneously] and Li et al. [@li2010joint]
+
+The joint model is estimated within a Bayesian framework. While the Bayesian formulation of the longitudinal submodel has been extensively studied in the literature, the survival submodel in this work is modelled using a Gamma process, a less commonly applied approach in Bayesian survival analysis. We briefly summarise the framework of Gamma process, which we adopt for fitting Cox model. Details can be found in Ibrahim et al. @ibrahim_bayesian_2001 Under the Cox model, the joint probability of survival of $n$ subjects is 
+$$
+\begin{aligned}
+&P(\boldsymbol Y^{(survival)} > \boldsymbol y^{(survival)}|\boldsymbol\alpha,X,H_0) = \exp\bigg\{-\sum_{j=1}^n \exp(\boldsymbol x_j'\boldsymbol\alpha)H_0(y_j^{(survival)}) \bigg\}\\
+&H_0 \sim \mathrm{GammaProcess}(c_0H^*, c_0).
+\end{aligned}
+$$
+Under assumption of exponential distribution, we have $H^*(y^{(survival)}) = \gamma_0y^{(survival)}$. We define
+$$
+h_j \equiv H_0(s_j) - H_0(s_{j-1}) \sim Gam(\kappa_{0j}-\kappa_{0,j-1},c_0),
+$$
+where $\kappa_{0j} = c_0H^*(s_j)$. Thus, 
+$$
+h_j \sim Ga(c_0\gamma_0(s_j-s_{j-1}), c_0),
+$$ {#eq-03}
+where $c_0$ and $\gamma_0$ are hyper-parameters, and $0 < s_1 < s_2 < \dots < s_J$ with $s_J > y_i^{(survival)} \forall i$. Hence, the likelihood function is
+$$
+L(\boldsymbol\alpha, \boldsymbol h|D) \propto \prod_{j=1}^JG_j,
+$$
+where $\boldsymbol h = (h_1,\dots,h_J)'$ and 
+$$
+G_j = \exp\bigg\{-h_j\sum_{k \in \mathcal R_j -\mathcal D_j}\exp\boldsymbol x'\boldsymbol\alpha \bigg\}\prod_{l \in \mathcal D_j}\bigg[1 - \exp\{-h_j\exp(\boldsymbol x'\boldsymbol\alpha)\}\bigg],
+$$
+where $\mathcal{R}_j$ and $\mathcal{D}_i$ are the risk and event set at time $j$. Since $H_0$ enters the likelihood only through the $h_j$'s, parameters in the likelihood are $(\boldsymbol\alpha,\boldsymbol h)$. As both the longitudinal and survival time submodels are conditional independent given random effect, the complete data log-likelihood is 
+
+$$
+l(\boldsymbol\theta) = \sum_{i=1}^n\ln\big\{\phi(y^{(longitudinal)}_i|\boldsymbol{b_i,\beta},\sigma^2)
+\phi(\boldsymbol b_i|\Sigma_b)
+\phi(y^{(survival)}_i|\boldsymbol b_i, \boldsymbol\beta, \boldsymbol\alpha)
+\big\},
+$$
+where $\phi(.|.)$ denotes the appropriate normal probability density function. 
+
+The Bayesian models are completed after defining the prior distribution. We define the priors as follows.
+$$
+\begin{aligned}
+&\{\beta_k\}_{k=1}^2 \sim N(0, 10), \quad b_{0i} \sim N(0,10), \quad b_{1i}\sim U(0,4) \\
+&\epsilon_{ij} \sim N(0,\sigma^2), \quad \sigma \sim N^+(0,5)
+\end{aligned}
+$$ {#eq-04}
+and the hyperparameters in @eq-03 are 
+$$
+\begin{aligned}
+&\alpha_1 \sim N(0,10), \quad \alpha_2 \sim N(0,3)\\
+& \gamma_0 = 0.1,\quad c_0 = 0.01,
+\end{aligned}
+$$ {#eq-05}
+suggested by Ibrahim et al. @ibrahim_bayesian_2001 
+
+All models were implemented in the R environment using `stan`, which performs full Bayesian inference via Hamiltonian Monte Carlo. For each model, 3,000 posterior samples were drawn following 4,000 warm-up iterations. Convergence was assessed using the potential scale reduction statistic $\hat{R}$, with values below 1.1 indicating satisfactory convergence.
+
+# Simulations
+
+Data are simulated based on four steps:
+
+1. We simulate time for each subject; 
+2. The longitudinal observations are generated for each subject;
+3. We remove all longitudinal observations with time beyond survival time;
+4. The censors are defined as the event times beyond the 60% quantile.
+
+First, we assume that the event time follows an exponential distribution and employ the method proposed by Austin et al. @austin2012generating, which enables the event time to be generated using a closed-form expression. The authors define the hazard function as $h_0(t)\exp\big\{\beta_tz(t) + \beta'x\big\}$,
+where $z(t)$ is a time-varying covariate. They assume that $z(t)$ is proportional to time, specifically $z(t) = \nu t$, with $\nu > 0$. Under this assumption, the authors derived the closed-form expression for event time as
+$$
+T = \frac{1}{\beta_t \nu} \ln\bigg[1 + \frac{\beta_t \nu (-\ln u)}{\lambda \exp(\beta’x)} \bigg],
+$$
+where $\lambda$ is the scale parameter of the exponential distribution and $u$ is a random draw from the uniform distribution on (0,1). We note that the closed-form is obtained based on the integral with respect to the time $t$, which is a linear predictor. This suggests that the event time in our model (@eq-01 and @eq-02) can also be generated using a closed-form expression. We adopt this idea to show that the closed-form, used to simulate our survival time of our event time submodel, has the following form.   
+$$
+T = \ln\bigg[\frac{\alpha_2 \beta_2 (-\ln u)}{\lambda \exp{\alpha_2 k + \alpha_1 \mathrm{treatment}}} + 1 \bigg] \cdot \frac{1}{\alpha_2 \beta_2},
+$$ {#eq-06}
+the derivation of this closed-form expression is provided in Appendix @sec-A1. 
+
+It is important to note that this approach performs well only when the time-varying covariate is a well-defined function of time. In our setting, this condition holds, as the longitudinal model includes only individual-level covariates. However, if within-individual (time-dependent) covariates were incorporated, a more sophisticated method would be required. Hendry @hendry2014data proposed an approach for generating event times under time-dependent covariates using truncated piecewise exponential models. While this method aligns more closely with our event-time submodel—fitted using a piecewise constant hazard function—the simpler method proposed by Austin remains sufficient for our current framework.  
+
+Furthermore, while Hendry’s method offers a natural simulation flow—first generating longitudinal data and then simulating survival times based on those trajectories—Austin’s approach follows the reverse order. This reversal arises because the closed-form expression in @eq-06 is independent of time, as it is derived from integrating the exponential distribution over time $t$. Consequently, our simulation begins with generating event times, followed by the simulation of longitudinal measurements. As the longitudinal outcomes are accurately estimated, the generated event times more closely reflect their true underlying distribution (i.e., the exponential distribution), thereby improving the accuracy of coefficient estimates in the survival submodel.
+
+We simulate data using the following setting for fixed and random effects.
+$$
+\begin{aligned}
+&\beta_0 = 0.5,\quad \beta_1 = -1.2, \quad \lambda = 0.05 \\
+&b_0 \sim N(0,1), \quad b_1 \sim U(1,3), \quad \epsilon \sim N(0,1)\\
+&\alpha_2 = 0.8, \quad \alpha_1 = -0.5.
+\end{aligned}
+$$ {#eq-07}
+This setting implies that treatment decreases the longitudinal outcome ($\beta_1$ is negative); the considered disease is worse over time ($b_1$ is  non-negative); thus, as longitudinal outcome decreases, the hazard must decrease ($\alpha_2$ is positive); finally, treatment also decreases hazard ($\alpha_1$ is negative.)
+
+We simulate 4 scenarios:
+
+- 100 subjects per arm + 9 intervals ($J = 10$ time points). 
+- 100 subjects per arm + 69 intervals ($J = 70$ time points).
+- 150 subjects per arm + 9 intervals ($J =10$ time points).
+- 150 subjects per arm + 69 intervals ($J=70$ time points).
+
+Based on these scenarios, we evaluate ability of parameter recovery of the joint model, characterized by different sample sizes, reflected by two levels: subjects and the longitudinal observations of each subject. @fig-01 shows trajectories of longitudinal outcomes of all subjects in the first generated dataset in four scenarios.   
+
+```{r}
+#| out-width: 100%
+#| label: fig-01
+#| layout-ncol: 2
+#| layout-nrow: 2
+#| fig-cap: Trajectories of longitudinal outcomes in four scenarios.
+#| fig-subcap: 
+#|   - 'Scenario 1: $n/2 =100$ and $J = 10$.'
+#|   - 'Scenario 2: $n/2 =100$ and $J = 70$.'
+#|   - 'Scenario 3: $n/2 =150$ and $J = 10$.'
+#|   - 'Scenario 4: $n/2 =150$ and $J = 70$.'
+
+knitr::include_graphics('plot01.png')
+knitr::include_graphics('plot02.png')
+knitr::include_graphics('plot03.png')
+knitr::include_graphics('plot04.png')
+```
+
+# Results
+
+```{r}
+#| fig-cap: 'The forest plots show the means and 95\% HDIs of $\beta_1$ across 10 simulated datasets.'
+#| fig-height: 7
+#| fig-width: 7
+#| label: fig-02
+
+
+pacman::p_load(tidyverse, ggpubr)
+
+beta1 = read_rds(file = "project-run/01_code/main-result/beta1_plot.rds")
+lift_dl(ggarrange)(beta1, ncol = 2, nrow = 2)
+```
+
+@fig-02 shows the means and 95% highest density intervals (HDIs) of $\beta_1$, the treatment effect on the longitudinal outcome derived from ten simulated datasets. The means of the treatment effect are distributed around the true value, indicated by the vertical red line, exhibiting minimal bias. This observation suggests that the true treatment effect is effectively recovered. Furthermore, as the number of subjects increases from 100 to 150 per arm, the posterior uncertainty diminishes (indicated by narrower intervals,) thereby enhancing the precision of the treatment effect estimation.  
+
+@fig-03 presents the mean and 95% HDI's of the overall treatment effect on event time, formulated as $\beta_1\alpha_2 + \alpha_1$. As the number of subjects increases, the posterior uncertainty diminishes; however, the bias remains constant (compare scenarios 1 to 3). This constancy arises because we still regress on $m(t)$ observed with error (or biased toward its mean) due to lack of longitudinal outcomes, and thus the estimate of the slope $\alpha_2$ is not improved, thereby remaining a biased overall treatment effect. Further, although the increase in the number of longitudinal outcomes results in a reduction of bias in the overall treatment effect but the posterior variance increases (scenarios 2 and 4 have wider intervals compared to that in scenarios 1 and 3). It is crucial to acknowledge that the low variance (i.e. narrow intervals) observed in scenarios 1 and 3, with fewer longitudinal observations does not indicate high precision but rather an underestimation of variance. Let us denote the overall treatment effect as $\kappa = \beta_1\alpha_2 + \alpha_1$, variance of $\kappa$ is then 
+$$
+\mathrm V(\kappa)
+=\mathrm V(\alpha_1) + \beta_1^2\mathrm V(\alpha_2) +\;2\,\beta_1\,\mathrm{Cov}(\alpha_1,\alpha_2).
+$$ {#eq-k1}
+When the number of longitudinal observations is small, the posterior distributions for each $b_{0i}$ and $b_{1i}$ are strongly pulled toward their prior means (zero), reflecting classical hierarchical shrinkage. As a result, the subject-to-subject variability is considerably reduced, indicating a small between-subject variance in $m(t)$. Consequently, when $m(t)$ is substituted into the event time model to estimate the indirect treatment effect $\alpha_2$, the variance of $\alpha_2$ approaches its prior variance. Moreover, the covariance term in @eq-k1 shrinks toward zero. This occurs because $m_i(t)$ no longer differentiates between individuals, and thus the survival likelihood becomes insensitive to any relationship between treatment (reflected by $\alpha_1$) and the longitudinal outcome (reflected by $\alpha_2$). In effect, as $\alpha_2$ becomes nearly constant, the covariance term vanishes, leading to a reduction in $\mathrm{V}(\kappa)$.
+```{r}
+#| fig-cap: 'The forest plots show the means and 95\% HDIs of the overall treatment effect $\beta_1\alpha_2 +\alpha_1$ across 10 simulated datasets.'
+#| fig-height: 7
+#| fig-width: 7
+#| label: fig-03
+
+pacman::p_load(tidyverse, ggpubr)
+
+indirect = read_rds(file = "project-run/01_code/main-result/indirect_plot.rds")
+lift_dl(ggarrange)(indirect, ncol = 2, nrow = 2)
+```
+In contrast, when more observations are available for each subject, the variance of $m(t)$ is estimated more accurately, providing more information to estimate $\alpha_2$, decreasing the uncertainty. Despite the decrease of $\mathrm{V}(\alpha_2)$, the covariance term in @eq-k1 remains substantial and positive, contributing additional variability. As a result, the variance of the net effect $\mathrm{\kappa}$ is actually larger than in the "few-observation" case. The reduction in $\mathrm{V}(\alpha_2)$ in the "many-observation" scenario arises because this variance reflects two sources of uncertainty: one derived from the data and the other from the prior, i.e.,
+$$
+\mathrm V(\alpha_2\mid\text{data}) =\frac{1}{I(\alpha_2) + 1/\sigma_{\alpha_2}^2},
+$$ {#eq-k2}
+where $I(\alpha_2)$ denotes the Fisher information of $\alpha_2$ derived from the data, and $\sigma^2_{\alpha_2}$ represents the prior variance. Thus, as the number of observations per subject increases, $I$ becomes large, resulting in a reduction of $\mathrm{V}(\alpha_2)$. This also explains why $\mathrm{V}(\alpha_2)$ tends to shrink toward the prior variance (i.e. $\sigma^2_{\alpha_2}$) when the number of observations per subject is small (i.e. $I \to 0$.)
+
+Although the overall treatment effect, expressed as $\beta_1\alpha_2 + \alpha_1$, is sufficiently recovered, the individual estimates of the indirect effect ($\alpha_2$) and the direct effect ($\alpha_1$) on event time exhibit noticeable bias. As illustrated in @fig-04, the posterior means and 95% HDIs for $\alpha_2$ reveal a consistent underestimation across four distinct scenarios. Increasing the number of longitudinal observations per subject (as seen in scenarios 2 and 4) reduces this bias; however, it does not eliminate it entirely.
+```{r}
+#| fig-cap: 'The forest plots show the means and 95\% HDIs of the indirect treatment effect $\alpha_2$ across 10 simulated datasets.'
+#| fig-height: 7
+#| fig-width: 7
+#| label: fig-04
+
+pacman::p_load(tidyverse, ggpubr)
+
+alpha2 = read_rds(file = "project-run/01_code/main-result/alpha2_plot.rds")
+lift_dl(ggarrange)(alpha2, ncol = 2, nrow = 2)
+
+```
+Moreover, although the estimation of $\alpha_2$ improves with additional longitudinal data, the variability of $\alpha_1$ across simulated datasets increases. @fig-05 shows the means of $\alpha_1$ distribute about the true value with higher dispersion in scenario 2 and 4. This pattern arises because, in the "low-observations" setting, $\alpha_2$ is strongly pulled toward its prior mean of zero, resulting in $\alpha_1$ being estimated largely independently of $\alpha_2$. This independence leads to relatively low and stable sampling variability in $\alpha_1$. In contrast, when sufficient data is available to inform the estimate of $\alpha_2$, the model must allocate the treatment effect between the direct and indirect pathways. However, the event time model only identify $\alpha_2\beta_1+\alpha_1$ as the treatment effect on survival outcome. Thus, the model might not well capture two treatment effects separately. This introduces greater sampling uncertainty (i.e., among simulated datasets), thereby increasing the variability of $\alpha_1$ across simulations.
+```{r}
+#| fig-cap: 'The forest plots show the means and 95\% HDIs of the direct treatment effect $\alpha_1$ across 10 simulated datasets.'
+#| fig-height: 7
+#| fig-width: 7
+#| label: fig-05
+
+pacman::p_load(tidyverse, ggpubr)
+
+alpha1 = read_rds(file = "project-run/01_code/main-result/alpha1_plot.rds")
+lift_dl(ggarrange)(alpha1, ncol = 2, nrow = 2)
+```
+
+# Discussion 
+
+This study evaluates the performance of a joint model for longitudinal and time-to-event data. The results show that both the treatment effect on the longitudinal outcome and the overall treatment effect on event time are accurately recovered. However, the model exhibits bias in estimating individual-level direct and indirect treatment effects on the time-to-event outcome. Specifically, although the longitudinal trajectories are well estimated, the survival submodel struggles to disentangle the direct and indirect pathways of treatment influence. Increasing the sample size may help reduce this bias and improve the precision of effect decomposition.
+
+This study considered a simplified model setting that included only a baseline treatment covariate, with the time-varying covariate specified as a well-defined function of time. However, this assumption may be unrealistic, as models used in practice often involve greater complexity, for example, the functional form of time-varying covariates and time is typically unknown. A more applicable approach would involve generating data under a piecewise constant hazard framework, which explicitly captures the dynamic effects of time-varying covariates on event times across small time intervals.
+
+Future research should consider extending the longitudinal submodel to include additional time-varying covariates, encompassing both categorical and continuous variables. A piecewise constant hazard framework can be employed to generate survival times, allowing the effect of covariates to vary over time. Additionally, generating survival times under different assumptions about the underlying event-time distributions will help evaluate the robustness of the joint modelling approach.    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ------------------------------------------------------------------------ -->
+<!-- ------------------------------------------------------------------------ -->
+<!-- ------------------------------------------------------------------------ -->
+<!-- ------------------------------------------------------------------------ -->
+
+
+\clearpage
+
+# References {-}
+
+\singlespacing
+
+::: {#refs}
+:::
+
+\clearpage
+\setcounter{section}{0}
+\renewcommand{\thesection}{\Alph{section}}
+\setcounter{figure}{0}
+\renewcommand{\thefigure}{\arabic{figure} (Appendix)}
+
+# Appendix
+
+## Show the closed-form function to generate event time {#sec-A1}
+
+Let us consider @eq-05 again. As event time follows an exponential distribution, we have that 
+$$
+\begin{aligned}
+H(t) &= \int_{0}^t \exp\big\{\alpha_2k+\alpha_1\mathrm{treatment}+\alpha_2\beta_2u\big\}\lambda du\\
+&= \lambda\exp\big\{\alpha_2k+\alpha_1\mathrm{treatment}\big\}\int_0^t\exp[\alpha_2\beta_2u]du\\
+&= \frac{\lambda\exp\{\alpha_2k+\alpha_1\mathrm{treatment}\}}{\alpha_2\beta_2}(e^{\alpha_2\beta_2 t}-1)
+\end{aligned}
+$$
+thus,
+$$
+H^{-1}(u) = \ln\bigg[\frac{\alpha_2\beta_2u}{\lambda\exp\{\alpha_2k+\alpha_1\mathrm{treatment}\}}+1\bigg]\frac{1}{\alpha_2\beta_2}.
+$$
+The event time can be generated using the closed-form function:
+$$
+T = \ln\bigg[\frac{\alpha_2\beta_2(-\ln u)}{\lambda\exp\{\alpha_2k+\alpha_1\mathrm{treatment}\}}+1\bigg]\frac{1}{\alpha_2\beta_2},
+$$
+where $u \sim \mathrm{Uniform}(0,1)$. 
+
+
+
+
+
+
